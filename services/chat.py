@@ -11,18 +11,30 @@ import os
 # 设置日志
 logger = setup_logger('chat')
 
-# 加载环境变量
-load_dotenv()
+# 全局变量
+chat = None
+search_tool = None
+db = None
 
-# 初始化数据库连接
-db = Database("postgresql+psycopg2://neondb_owner:npg_wgixrLkJB31N@ep-wandering-dawn-a8c402vl-pooler.eastus2.azure.neon.tech/neondb?sslmode=require")
-db.init_database()
-
-# 初始化 DeepSeek Chat 和 Google 搜索
-chat = DeepSeekChat(api_key=os.getenv("DEEPSEEK_API_KEY"))
-search_tool = create_google_search_tool()
+def init_services():
+    global chat, search_tool, db
+    
+    # 加载环境变量
+    load_dotenv()
+    
+    # 初始化数据库连接
+    db = Database("postgresql+psycopg2://neondb_owner:npg_wgixrLkJB31N@ep-wandering-dawn-a8c402vl-pooler.eastus2.azure.neon.tech/neondb?sslmode=require")
+    db.init_database()
+    
+    # 初始化 DeepSeek Chat 和 Google 搜索
+    chat = DeepSeekChat(api_key=os.getenv("DEEPSEEK_API_KEY"))
+    search_tool = create_google_search_tool()
 
 def search_and_respond(query):
+    global chat, search_tool, db
+    if not all([chat, search_tool, db]):
+        init_services()
+    
     logger.info(f"接收到查询请求: {query}")
     
     # 执行 Google 搜索
@@ -66,6 +78,7 @@ def search_and_respond(query):
     return final_results
 
 if __name__ == "__main__":
+    init_services()
     try:
         query = "最新的量子计算机研究进展"
         results = search_and_respond(query)
