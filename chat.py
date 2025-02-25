@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from google_search import create_google_search_tool
 from prompts import searcher_system_prompt_cn
 from utils.logger import setup_logger
+from utils.database import Database
 from models.search_result import SearchResult
 import os
 
@@ -12,6 +13,10 @@ logger = setup_logger('chat')
 
 # 加载环境变量
 load_dotenv()
+
+# 初始化数据库连接
+db = Database("postgresql://neondb_owner:npg_wgixrLkJB31N@ep-wandering-dawn-a8c402vl-pooler.eastus2.azure.neon.tech/neondb?sslmode=require")
+db.init_database()
 
 # 初始化 DeepSeek Chat 和 Google 搜索
 chat = DeepSeekChat(api_key=os.getenv("DEEPSEEK_API_KEY"))
@@ -51,25 +56,36 @@ def search_and_respond(query):
     for result in search_results:
         final_results.append(SearchResult.from_google_result(result))
     
+    # 保存结果到数据库
+    try:
+        db.save_search_results(query, final_results)
+        logger.info("搜索结果已保存到数据库")
+    except Exception as e:
+        logger.error(f"保存到数据库失败: {str(e)}")
+    
     return final_results
 
 if __name__ == "__main__":
-    query = "最新的量子计算机研究进展"
-    results = search_and_respond(query)
-    
-    print("\n=== GPT 总结 ===")
-    gpt_result = next(r for r in results if r.content is not None)
-    print(f"ID: {gpt_result.id}")
-    print(f"标题: {gpt_result.title}")
-    print(f"内容: {gpt_result.content}")
-    print(f"时间: {gpt_result.date}")
-    
-    print("\n=== Google 搜索结果 ===")
-    google_results = [r for r in results if r.content is None]
-    for result in google_results:
-        print(f"\nID: {result.id}")
-        print(f"标题: {result.title}")
-        print(f"摘要: {result.snippet}")
-        print(f"来源: {result.link}")
-        print(f"时间: {result.date}")
-        print("-" * 50)
+    try:
+        query = "最新的量子计算机研究进展"
+        results = search_and_respond(query)
+        
+        print("\n=== GPT 总结 ===")
+        gpt_result = next(r for r in results if r.content is not None)
+        print(f"ID: {gpt_result.id}")
+        print(f"标题: {gpt_result.title}")
+        print(f"内容: {gpt_result.content}")
+        print(f"时间: {gpt_result.date}")
+        
+        print("\n=== Google 搜索结果 ===")
+        google_results = [r for r in results if r.content is None]
+        for result in google_results:
+            print(f"\nID: {result.id}")
+            print(f"标题: {result.title}")
+            print(f"摘要: {result.snippet}")
+            print(f"来源: {result.link}")
+            print(f"时间: {result.date}")
+            print("-" * 50)
+    finally:
+        # 确保关闭数据库连接
+        db.close()
