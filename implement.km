@@ -1,0 +1,174 @@
+{
+    "root": {
+        "data": {
+            "id": "d7ij879ecww0",
+            "created": 1738557582057,
+            "text": "卡片信息app"
+        },
+        "children": [
+            {
+                "data": {
+                    "id": "d7ij8skiabc0",
+                    "created": 1738557628441,
+                    "text": "技术调研",
+                    "layout_mind_offset": {
+                        "x": -42,
+                        "y": -2
+                    }
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "d7ij8ynmhq80",
+                            "created": 1738557641690,
+                            "text": "ai chat 调研"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "d7ija14c9uo0",
+                                    "created": 1738557725419,
+                                    "text": "购买OpenAI API"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "d7ija7xu12g0",
+                                            "created": 1738557740264,
+                                            "text": "需要一张银行卡"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "d7ijabpgjog0",
+                                    "created": 1738557748463,
+                                    "text": "deepseak 已经购买"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "d7ijamg65m00",
+                                            "created": 1738557771846,
+                                            "text": "MD 在维护...."
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "d7ij94jlvwo0",
+                            "created": 1738557654508,
+                            "text": "google search api"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "d7ij9apmkhc0",
+                            "created": 1738557667933,
+                            "text": "news api"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "d7ij9e9s3fs0",
+                    "created": 1738557675682,
+                    "text": "产品设计",
+                    "priority": null,
+                    "progress": null
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "d7ijc8vhgo00",
+                            "created": 1738557899026,
+                            "text": "参考产品"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "d7ijceifwaw0",
+                                    "created": 1738557911298,
+                                    "text": "google app"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "d7ijchxu78o0",
+                                    "created": 1738557918759,
+                                    "text": "微软copilot app"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "d7ijf1l0x2g0",
+                                    "created": 1738558118248,
+                                    "text": "头条AI"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "d7ijgowbtq80",
+                            "created": 1738558247362,
+                            "text": "需求整理",
+                            "priority": 1
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "d7ijh0grs5c0",
+                                    "created": 1738558272543,
+                                    "text": "需求文档",
+                                    "priority": 1
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "d7ijh33h13k0",
+                                    "created": 1738558278269,
+                                    "text": "原型图",
+                                    "priority": 1
+                                },
+                                "children": []
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "d7ij9kv5t280",
+                    "created": 1738557690035,
+                    "text": "程序编写"
+                },
+                "children": []
+            },
+            {
+                "data": {
+                    "id": "d7ij9pjae3k0",
+                    "created": 1738557700201,
+                    "text": "UI 交互设计"
+                },
+                "children": []
+            }
+        ]
+    },
+    "template": "default",
+    "theme": "classic",
+    "version": "1.4.43"
+}
