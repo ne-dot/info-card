@@ -15,7 +15,7 @@ logger = setup_logger('chat')
 load_dotenv()
 
 # 初始化数据库连接
-db = Database("postgresql://neondb_owner:npg_wgixrLkJB31N@ep-wandering-dawn-a8c402vl-pooler.eastus2.azure.neon.tech/neondb?sslmode=require")
+db = Database("postgresql+psycopg2://neondb_owner:npg_wgixrLkJB31N@ep-wandering-dawn-a8c402vl-pooler.eastus2.azure.neon.tech/neondb?sslmode=require")
 db.init_database()
 
 # 初始化 DeepSeek Chat 和 Google 搜索
