@@ -9,9 +9,11 @@ import json
 
 logger = setup_logger('chat_service')
 
+from services.deepseek_service import DeepSeekService
+
 class ChatService:
     def __init__(self, db):
-        self.chat = DeepSeekChat(api_key=DEEPSEEK_API_KEY)
+        self.chat = DeepSeekService()
         self.db = db
 
     async def search_and_respond(self, query: str):
