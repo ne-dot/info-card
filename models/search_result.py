@@ -30,6 +30,7 @@ class SearchResult:
             return cls(
                 title=result.get('title'),
                 link=result.get('link'),
+                snippet=result.get('snippet'),  # 添加 snippet 字段
                 thumbnail_link=result.get('thumbnailLink'),
                 context_link=result.get('contextLink'),
                 source='google_image',
