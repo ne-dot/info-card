@@ -16,4 +16,7 @@ class SearchResultModel(Base):
     snippet = Column(Text)
     link = Column(Text)
     source = Column(String(50))
+    type = Column(String(20), default='text')
+    thumbnail_link = Column(Text)
+    context_link = Column(Text)
     date = Column(DateTime(timezone=True), server_default=func.now())

@@ -2,9 +2,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List
 from services.chat_service import ChatService
-from tools.google_search import search_google  # Updated import path
+from tools.google_search import search_google_by_text  
 
 router = APIRouter()
+chat_service = None
 
 class SearchQuery(BaseModel):
     query: str

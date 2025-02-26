@@ -30,7 +30,10 @@ class Database:
                     content=result.content,
                     snippet=result.snippet,
                     link=result.link,
-                    source=result.source
+                    source=result.source,
+                    type=result.type,
+                    thumbnail_link=result.thumbnail_link,
+                    context_link=result.context_link
                 )
                 db_objects.append(db_result)
 
