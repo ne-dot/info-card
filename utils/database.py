@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models.database_models import Base, SearchResultModel
+from models.search_result_dbmodel import Base, SearchResultModel
 from utils.logger import setup_logger
 
 logger = setup_logger('database')

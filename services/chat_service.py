@@ -4,7 +4,7 @@ from config.prompts.search_prompts import searcher_system_prompt_cn
 from utils.logger import setup_logger
 from models.search_result import SearchResult
 from config.settings import DEEPSEEK_API_KEY
-from services.google_search import search_google
+from tools.google_search import search_google  # Updated import path
 import json
 
 logger = setup_logger('chat_service')
