@@ -1,17 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List
-import uvicorn
-import sys
-import os
+from services.chat_service import ChatService
+from services.google_search import search_google
 
-# 添加项目根目录到 Python 路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from services.chat import search_and_respond, init_services
-from models.search_result import SearchResult
-
-app = FastAPI(title="搜索服务 API")
+router = APIRouter()
 
 class SearchQuery(BaseModel):
     query: str
@@ -20,14 +13,14 @@ class SearchResponse(BaseModel):
     gpt_summary: dict
     google_results: List[dict]
 
-@app.on_event("startup")
-async def startup_event():
-    init_services()
+def init_controller(service: ChatService):
+    global chat_service
+    chat_service = service
 
-@app.post("/api/search", response_model=SearchResponse)
+@router.post("/search", response_model=SearchResponse)
 async def search(query: SearchQuery):
     try:
-        results = search_and_respond(query.query)
+        results = await chat_service.search_and_respond(query.query)
         
         # 分离 GPT 和 Google 结果
         gpt_result = next(r for r in results if r.content is not None)
@@ -48,6 +41,3 @@ async def search(query: SearchQuery):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
