@@ -29,14 +29,18 @@ async def search(query: SearchQuery):
         
         return SearchResponse(
             gpt_summary={
+                "id": str(gpt_result.key_id),
                 "title": gpt_result.title,
                 "content": gpt_result.content,
                 "date": gpt_result.date
             },
             google_results=[{
+                "id": str(r.key_id),
                 "title": r.title,
                 "snippet": r.snippet,
                 "link": r.link,
+                "thumbnail_link": getattr(r, 'thumbnail_link', None),
+                "type": getattr(r, 'type', 'text'),
                 "date": r.date
             } for r in google_results]
         )

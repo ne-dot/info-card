@@ -44,8 +44,8 @@ class ChatService:
         final_results.append(SearchResult.from_gpt_response(gpt_response.content))
         
         # 添加 Google 文本搜索结果
-        for result in text_results:
-            final_results.append(SearchResult.from_google_result(result))
+        # for result in text_results:
+        #     final_results.append(SearchResult.from_google_result(result))
             
         # 添加 Google 图片搜索结果
         for result in image_results:
