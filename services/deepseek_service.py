@@ -1,57 +1,83 @@
-from langchain.chat_models.base import BaseChatModel
-from langchain.schema import ChatResult, BaseMessage, ChatGeneration, AIMessage, HumanMessage, SystemMessage
-from typing import List, Optional
-from openai import OpenAI
-from pydantic import Field
+from langchain.schema import HumanMessage, SystemMessage
 from utils.logger import setup_logger
-from config.settings import DEEPSEEK_API_KEY
+import os
+from openai import OpenAI
 
 logger = setup_logger('deepseek_service')
 
-class DeepSeekService(BaseChatModel):
-    api_key: str = Field(..., description="DeepSeek API Key")
-    client: Optional[OpenAI] = None
-    model_name: str = Field(default="deepseek-chat")
-    
+class DeepSeekService:
     def __init__(self):
-        super().__init__(api_key=DEEPSEEK_API_KEY)
+        # 初始化 DeepSeek 客户端
         self.client = OpenAI(
-            api_key=DEEPSEEK_API_KEY,
-            base_url="https://api.deepseek.com"
+            api_key=os.getenv("DEEPSEEK_API_KEY", ""),
+            base_url=os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com/v1")
         )
+        # 设置默认模型
+        self.model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+        logger.info(f"初始化 DeepSeekService，使用模型: {self.model}")
 
-    def _convert_message_to_role(self, message: BaseMessage) -> str:
-        if isinstance(message, SystemMessage):
-            return "system"
-        elif isinstance(message, HumanMessage):
-            return "user"
-        elif isinstance(message, AIMessage):
-            return "assistant"
-        else:
-            raise ValueError(f"不支持的消息类型: {type(message)}")
-
-    def _generate(self, messages: List[BaseMessage], stop: Optional[List[str]] = None, **kwargs) -> ChatResult:
+    def invoke(self, messages, tools=None):
         try:
-            converted_messages = [
-                {
-                    "role": self._convert_message_to_role(m),
-                    "content": m.content
-                } 
-                for m in messages
-            ]
+            # 记录调用信息
+            logger.info(f"调用DeepSeek API，消息数: {len(messages)}")
+            if tools:
+                logger.info(f"使用工具: {[tool.name for tool in tools]}")
+                
+            # 准备工具格式
+            tools_format = None
+            if tools:
+                tools_format = [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "query": {
+                                        "type": "string",
+                                        "description": "搜索查询"
+                                    }
+                                },
+                                "required": ["query"]
+                            }
+                        }
+                    } for tool in tools
+                ]
             
+            # 转换消息角色
+            formatted_messages = []
+            for msg in messages:
+                role = msg.type
+                # 将 human 角色转换为 user
+                if role == "human":
+                    role = "user"
+                # 将 ai 角色转换为 assistant
+                elif role == "ai":
+                    role = "assistant"
+                
+                formatted_messages.append({
+                    "role": role,
+                    "content": msg.content
+                })
+            
+            logger.info(f"格式化后的消息: {formatted_messages}")
+                
+            # 调用API
             response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=converted_messages,
-                stream=False
+                model=self.model,
+                messages=formatted_messages,
+                tools=tools_format,
+                tool_choice="auto" if tools else None,
+                temperature=0.7,
+                max_tokens=2000
             )
             
-            message = AIMessage(content=response.choices[0].message.content)
-            return ChatResult(generations=[ChatGeneration(message=message)])
+            logger.info(f"DeepSeek响应: {response}")
+            
+            # 返回结果
+            return response.choices[0].message
         except Exception as e:
-            logger.error(f"DeepSeek API 调用失败: {str(e)}")
-            raise
-
-    @property
-    def _llm_type(self) -> str:
-        return "deepseek-chat"
+            logger.error(f"DeepSeek API调用失败: {str(e)}")
+            raise e
