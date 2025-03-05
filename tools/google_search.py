@@ -19,7 +19,10 @@ async def search_google_by_text(query: str):
         logger.info(f"开始 Google 文本搜索: {query}")
         
         search = get_google_search()
+        logger.info(f"Google API 配置: API_KEY={GOOGLE_API_KEY[:4]}..., CSE_ID={GOOGLE_CSE_ID[:4]}...")
+        
         raw_results = search.results(query, num_results=5)
+        logger.info(f"原始结果数量: {len(raw_results) if raw_results else 0}")
         
         formatted_results = []
         for result in raw_results:
@@ -31,7 +34,7 @@ async def search_google_by_text(query: str):
             }
             formatted_results.append(formatted_result)
         
-        logger.info("文本搜索结果:")
+        logger.info(f"文本搜索结果数量: {len(formatted_results)}")
         logger.info("-" * 50)
         logger.info(json.dumps(formatted_results, ensure_ascii=False, indent=2))
         logger.info("-" * 50)
@@ -39,11 +42,14 @@ async def search_google_by_text(query: str):
         return formatted_results
     except Exception as e:
         logger.error(f"Google 文本搜索失败: {str(e)}")
-        raise e
+        logger.exception("详细错误信息")
+        # 返回空列表而不是抛出异常，确保程序可以继续运行
+        return []
 
 async def search_google_by_image(query: str):
     try:
         logger.info(f"开始 Google 图片搜索: {query}")
+        logger.info(f"Google API 配置: API_KEY={GOOGLE_API_KEY[:4]}..., CSE_ID={GOOGLE_CSE_ID[:4]}...")
         
         # 使用同一个搜索实例进行图片搜索和上下文搜索
         search = get_google_search()
@@ -59,15 +65,26 @@ async def search_google_by_image(query: str):
             "fields": "items(title,link,image/thumbnailLink,image/contextLink)"  # 只获取需要的字段
         }
 
+        logger.info(f"发送图片搜索请求: {search_url}")
         response = requests.get(search_url, params=params)
+        logger.info(f"图片搜索响应状态码: {response.status_code}")
+        
+        if response.status_code != 200:
+            logger.error(f"图片搜索请求失败: {response.text}")
+            return []
+            
         results = response.json()
+        logger.info(f"图片搜索原始响应: {json.dumps(results, ensure_ascii=False)[:500]}...")
         
         formatted_results = []
         if "items" in results:
+            logger.info(f"找到 {len(results['items'])} 个图片结果")
             # 收集所有需要搜索上下文的 URL
             context_urls = [item.get('image', {}).get('contextLink') 
                           for item in results['items'] 
                           if item.get('image', {}).get('contextLink')]
+            
+            logger.info(f"需要获取上下文的URL数量: {len(context_urls)}")
             
             # 批量获取上下文内容
             context_contents = {}
@@ -75,9 +92,13 @@ async def search_google_by_image(query: str):
                 for context_url in context_urls:
                     try:
                         # 对每个 URL 单独搜索，确保能获取到内容
+                        logger.info(f"获取上下文内容: {context_url}")
                         context_results = search.results(f"site:{context_url}", num_results=1)
                         if context_results:
                             context_contents[context_url] = context_results[0].get('snippet', '')
+                            logger.info(f"成功获取上下文: {context_url}")
+                        else:
+                            logger.warning(f"未找到上下文内容: {context_url}")
                     except Exception as e:
                         logger.error(f"获取上下文内容失败 {context_url}: {str(e)}")
                         context_contents[context_url] = ''
@@ -94,8 +115,10 @@ async def search_google_by_image(query: str):
                     'source': 'google_image'
                 }
                 formatted_results.append(formatted_result)
+        else:
+            logger.warning(f"图片搜索未返回任何结果，响应内容: {json.dumps(results, ensure_ascii=False)}")
         
-        logger.info("图片搜索结果:")
+        logger.info(f"图片搜索结果数量: {len(formatted_results)}")
         logger.info("-" * 50)
         logger.info(json.dumps(formatted_results, ensure_ascii=False, indent=2))
         logger.info("-" * 50)
@@ -103,4 +126,6 @@ async def search_google_by_image(query: str):
         return formatted_results
     except Exception as e:
         logger.error(f"Google 图片搜索失败: {str(e)}")
-        raise e
+        logger.exception("详细错误信息")
+        # 返回空列表而不是抛出异常
+        return []

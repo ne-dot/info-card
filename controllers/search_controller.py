@@ -24,8 +24,8 @@ async def search(query: SearchQuery):
         results = await chat_service.search_and_respond(query.query)
         
         # 分离 GPT 和 Google 结果
-        gpt_result = next(r for r in results if r.content is not None)
-        google_results = [r for r in results if r.content is None]
+        gpt_result = next(r for r in results if r.source is "gpt")
+        google_results = [r for r in results if r.source is "google_image"]
         
         return SearchResponse(
             gpt_summary={
@@ -39,7 +39,8 @@ async def search(query: SearchQuery):
                 "title": r.title,
                 "snippet": r.snippet,
                 "link": r.link,
-                "thumbnail_link": getattr(r, 'thumbnail_link', None),
+                "content_link": getattr(r, 'context_link', r.link),  # 添加content_link字段
+                "thumbnailLink": getattr(r, 'thumbnail_link', None),
                 "type": getattr(r, 'type', 'text'),
                 "date": r.date
             } for r in google_results]
