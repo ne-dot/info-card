@@ -4,7 +4,8 @@ from typing import List
 from services.chat_service import ChatService
 from tools.google_search import search_google_by_text  
 
-router = APIRouter()
+# 添加标记，表示这个路由不需要认证
+router = APIRouter(tags=["搜索"], include_in_schema=True)
 chat_service = None
 
 class SearchQuery(BaseModel):
@@ -18,6 +19,7 @@ def init_controller(service: ChatService):
     global chat_service
     chat_service = service
 
+# 保持原有路由不变
 @router.post("/search", response_model=SearchResponse)
 async def search(query: SearchQuery):
     try:

@@ -4,6 +4,7 @@ from utils.logger import setup_logger
 from models.search_result import SearchResult
 from services.deepseek_service import DeepSeekService
 from tools.google_search import search_google_by_text, search_google_by_image
+from dao.search_dao import SearchDAO
 import json
 
 logger = setup_logger('chat_service')
@@ -13,7 +14,7 @@ from langchain.tools import StructuredTool
 class ChatService:
     def __init__(self, db):
         self.chat = DeepSeekService()
-        self.db = db
+        self.search_dao = SearchDAO(db)
         # 定义搜索工具
         self.text_search_tool = StructuredTool.from_function(
             func=self._text_search_wrapper,
@@ -115,7 +116,7 @@ class ChatService:
 
         # 保存结果到数据库
         try:
-            self.db.save_search_results(query, final_results)
+            self.search_dao.save_search_results(query, final_results)
             logger.info("搜索结果已保存到数据库")
         except Exception as e:
             logger.error(f"保存到数据库失败: {str(e)}")
