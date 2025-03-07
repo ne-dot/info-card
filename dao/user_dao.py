@@ -13,15 +13,6 @@ class UserDAO:
     async def create_user(self, username, email, password):
         """创建新用户"""
         try:
-            # 检查用户名是否已存在
-            if await self.get_user_by_username(username):
-                logger.warning(f"用户名已存在: {username}")
-                return None, "用户名已存在"
-            
-            # 检查邮箱是否已存在
-            if await self.get_user_by_email(email):
-                logger.warning(f"邮箱已存在: {email}")
-                return None, "邮箱已存在"
             
             # 哈希密码
             password_hash = hash_password(password)

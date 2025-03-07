@@ -3,6 +3,7 @@ from utils.password_utils import verify_password
 from utils.jwt_utils import create_access_token, create_refresh_token, decode_token
 from utils.logger import setup_logger
 from models.user import User, UserResponse
+import re
 
 logger = setup_logger('auth_service')
 
@@ -13,6 +14,30 @@ class AuthService:
     async def register(self, username, email, password):
         """注册新用户"""
         try:
+            # 检查密码是否为空
+            if not password or password.strip() == "":
+                logger.warning("密码不能为空")
+                return None, "密码不能为空"
+
+            # 1. 检查用户名是否唯一
+            existing_user = await self.user_dao.get_user_by_username(username)
+            if existing_user:
+                logger.warning(f"用户名已存在: {username}")
+                return None, "用户名已存在，请选择其他用户名"
+            
+            # 2. 验证邮箱格式
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_pattern, email):
+                logger.warning(f"邮箱格式无效: {email}")
+                return None, "邮箱格式无效，请输入有效的邮箱地址"
+            
+            # 检查邮箱是否已被使用
+            existing_email = await self.user_dao.get_user_by_email(email)
+            if existing_email:
+                logger.warning(f"邮箱已被使用: {email}")
+                return None, "该邮箱已被注册，请使用其他邮箱"
+
+            
             user, error = await self.user_dao.create_user(username, email, password)
             if error:
                 return None, error

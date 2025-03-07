@@ -15,6 +15,7 @@ def init_controller(service: AuthService):
 @router.post("/register", response_model=UserResponse)
 async def register(user_data: UserCreate):
     """注册新用户"""
+    logger.info(f"接收到注册请求: {user_data.username}, {user_data.email}, {user_data.password}")
     try:
         user, error = await auth_service.register(
             user_data.username, 
@@ -22,7 +23,9 @@ async def register(user_data: UserCreate):
             user_data.password
         )
         if error:
+            logger.error(f"注册失败: {error}")
             raise HTTPException(status_code=400, detail=error)
+        logger.info(f"注册成功: {user_data.username}")
         return user
     except Exception as e:
         logger.error(f"注册失败: {str(e)}")
