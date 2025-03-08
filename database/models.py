@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-import datetime
+import time
 import uuid
 
 Base = declarative_base()
@@ -14,8 +14,8 @@ class UserModel(Base):
     username = Column(String(50), unique=True, nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     password_hash = Column(String(100), nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.now)
-    last_login = Column(DateTime, nullable=True)
+    created_at = Column(Integer, default=lambda: int(time.time()))  # 使用时间戳
+    last_login = Column(Integer, nullable=True)  # 使用时间戳
     is_active = Column(Boolean, default=True)
 
 # 搜索结果表定义
@@ -32,7 +32,7 @@ class SearchResultModel(Base):
     type = Column(String(20), default='text')
     thumbnail_link = Column(String(500), nullable=True)
     context_link = Column(String(500), nullable=True)
-    date = Column(DateTime, default=datetime.datetime.now)
+    date = Column(Integer, default=lambda: int(time.time()))  # 使用时间戳
     
     # 外键关联到查询
     query_id = Column(Integer, ForeignKey('search_queries.id'))
@@ -43,7 +43,7 @@ class SearchQueryModel(Base):
     
     id = Column(Integer, primary_key=True)
     query_text = Column(String(500), nullable=False)
-    date = Column(DateTime, default=datetime.datetime.now)
+    date = Column(Integer, default=lambda: int(time.time()))  # 使用时间戳
     
     # 可以添加用户外键，记录是哪个用户的查询
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True)

@@ -1,19 +1,18 @@
-from datetime import datetime
-import uuid
+from pydantic import BaseModel
+from typing import Optional
+import time
 
-class SearchResult:
-    def __init__(self, title=None, content=None, snippet=None, link=None, source=None, 
-                 type='text', thumbnail_link=None, context_link=None):
-        self.key_id = uuid.uuid4()
-        self.title = title
-        self.content = content
-        self.snippet = snippet
-        self.link = link
-        self.source = source
-        self.type = type
-        self.thumbnail_link = thumbnail_link
-        self.context_link = context_link
-        self.date = datetime.now()
+class SearchResult(BaseModel):
+    key_id: str
+    title: str
+    content: str
+    snippet: Optional[str] = None
+    link: Optional[str] = None
+    source: Optional[str] = None
+    type: Optional[str] = None
+    thumbnail_link: Optional[str] = None
+    context_link: Optional[str] = None
+    date: int = int(time.time())  # 使用时间戳
 
     @classmethod
     def from_gpt_response(cls, content: str):

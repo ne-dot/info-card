@@ -3,6 +3,7 @@ from typing import Optional
 from models.user import UserCreate, UserLogin, UserResponse, TokenResponse
 from services.auth_service import AuthService
 from utils.logger import setup_logger
+from utils.response_utils import success_response, error_response, ErrorCode
 
 router = APIRouter()
 logger = setup_logger('user_controller')
@@ -15,21 +16,22 @@ def init_controller(service: AuthService):
 @router.post("/register", response_model=UserResponse)
 async def register(user_data: UserCreate):
     """注册新用户"""
-    logger.info(f"接收到注册请求: {user_data.username}, {user_data.email}, {user_data.password}")
+    logger.info(f"接收到注册请求: {user_data.username}, {user_data.email}")
     try:
-        user, error = await auth_service.register(
+        user, error, error_code = await auth_service.register(
             user_data.username, 
             user_data.email, 
             user_data.password
         )
         if error:
             logger.error(f"注册失败: {error}")
-            raise HTTPException(status_code=400, detail=error)
+            return error_response(error, error_code)
+        
         logger.info(f"注册成功: {user_data.username}")
-        return user
+        return success_response(user.dict(), "注册成功")
     except Exception as e:
         logger.error(f"注册失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return error_response(f"注册失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
 
 @router.post("/login", response_model=TokenResponse)
 async def login(login_data: UserLogin):
@@ -40,11 +42,13 @@ async def login(login_data: UserLogin):
             login_data.password
         )
         if error:
-            raise HTTPException(status_code=401, detail=error)
-        return token
+            logger.warning(f"登录失败: {error}")
+            return error_response(error, ErrorCode.LOGIN_FAILED)
+        
+        return success_response(token, "登录成功")
     except Exception as e:
         logger.error(f"登录失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return error_response(f"登录失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(refresh_token: str = Header(...)):

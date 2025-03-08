@@ -4,6 +4,7 @@ from utils.jwt_utils import create_access_token, create_refresh_token, decode_to
 from utils.logger import setup_logger
 from models.user import User, UserResponse
 import re
+from utils.response_utils import ErrorCode
 
 logger = setup_logger('auth_service')
 
@@ -14,33 +15,41 @@ class AuthService:
     async def register(self, username, email, password):
         """注册新用户"""
         try:
-            # 检查密码是否为空
-            if not password or password.strip() == "":
-                logger.warning("密码不能为空")
-                return None, "密码不能为空"
-
             # 1. 检查用户名是否唯一
             existing_user = await self.user_dao.get_user_by_username(username)
             if existing_user:
                 logger.warning(f"用户名已存在: {username}")
-                return None, "用户名已存在，请选择其他用户名"
+                return None, "用户名已存在，请选择其他用户名", ErrorCode.USER_ALREADY_EXISTS
             
             # 2. 验证邮箱格式
             email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
             if not re.match(email_pattern, email):
                 logger.warning(f"邮箱格式无效: {email}")
-                return None, "邮箱格式无效，请输入有效的邮箱地址"
+                return None, "邮箱格式无效，请输入有效的邮箱地址", ErrorCode.INVALID_EMAIL
             
             # 检查邮箱是否已被使用
             existing_email = await self.user_dao.get_user_by_email(email)
+            logger.warning(f"邮箱检查: {existing_email}")
             if existing_email:
                 logger.warning(f"邮箱已被使用: {email}")
-                return None, "该邮箱已被注册，请使用其他邮箱"
+                return None, "该邮箱已被注册，请使用其他邮箱", ErrorCode.EMAIL_ALREADY_EXISTS
 
+            # 3. 验证密码长度和格式
+            if not password or password.strip() == "":
+                logger.warning("密码不能为空")
+                return None, "密码不能为空", ErrorCode.INVALID_PASSWORD
+                
+            if len(password) < 6 or len(password) > 18:
+                logger.warning("密码长度不符合要求，应为6-18位")
+                return None, "密码长度应为6-18位", ErrorCode.INVALID_PASSWORD
+                
+            if not (re.search(r'[A-Za-z]', password) and re.search(r'[0-9]', password)):
+                logger.warning("密码格式无效，需要包含字母和数字")
+                return None, "密码必须包含字母和数字的组合", ErrorCode.INVALID_PASSWORD
             
             user, error = await self.user_dao.create_user(username, email, password)
             if error:
-                return None, error
+                return None, error, ErrorCode.UNKNOWN_ERROR
             
             # 创建用户响应对象
             user_response = UserResponse(
@@ -51,10 +60,10 @@ class AuthService:
                 last_login=user.last_login
             )
             
-            return user_response, None
+            return user_response, None, None
         except Exception as e:
             logger.error(f"注册失败: {str(e)}")
-            return None, f"注册失败: {str(e)}"
+            return None, f"注册失败: {str(e)}", ErrorCode.UNKNOWN_ERROR
 
     async def login(self, username, password):
         """用户登录"""

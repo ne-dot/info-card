@@ -1,7 +1,7 @@
 from models.user import User
 from utils.logger import setup_logger
 from utils.password_utils import hash_password, verify_password
-from datetime import datetime
+import time
 import uuid
 
 logger = setup_logger('user_dao')
@@ -13,13 +13,19 @@ class UserDAO:
     async def create_user(self, username, email, password):
         """创建新用户"""
         try:
-            
             # 哈希密码
             password_hash = hash_password(password)
             
             # 创建用户对象
             user_id = str(uuid.uuid4())
-            user = User(user_id=user_id, username=username, email=email, password_hash=password_hash)
+            current_timestamp = int(time.time())
+            user = User(
+                user_id=user_id, 
+                username=username, 
+                email=email, 
+                password_hash=password_hash,
+                created_at=current_timestamp  # 确保传递时间戳
+            )
             
             # 创建数据库模型
             from database.models import UserModel
@@ -28,7 +34,7 @@ class UserDAO:
                 username=username,
                 email=email,
                 password_hash=password_hash,
-                created_at=datetime.now(),
+                created_at=current_timestamp,  # 使用时间戳
                 is_active=True
             )
             
@@ -83,8 +89,7 @@ class UserDAO:
                         username=user_model.username,
                         email=user_model.email,
                         password_hash=user_model.password_hash,
-                        created_at=user_model.created_at,
-                        last_login=user_model.last_login
+                        # 移除 created_at 参数，或者确保 User 类支持这个参数
                     )
                 return None
             finally:
@@ -106,8 +111,7 @@ class UserDAO:
                         username=user_model.username,
                         email=user_model.email,
                         password_hash=user_model.password_hash,
-                        created_at=user_model.created_at,
-                        last_login=user_model.last_login
+                        # 移除 created_at 和 last_login 参数
                     )
                 return None
             finally:
@@ -124,7 +128,7 @@ class UserDAO:
                 from database.models import UserModel
                 user_model = session.query(UserModel).filter(UserModel.user_id == user_id).first()
                 if user_model:
-                    user_model.last_login = datetime.now()
+                    user_model.last_login = int(time.time())  # 使用时间戳
                     session.commit()
                     return True
                 return False
