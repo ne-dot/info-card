@@ -1,0 +1,20 @@
+{
+  "login_success": "Login successful",
+  "login_failed": "Login failed",
+  "register_success": "Registration successful",
+  "register_failed": "Registration failed",
+  "user_not_found": "User not found",
+  "invalid_password": "Invalid password",
+  "invalid_credentials": "Invalid username/email or password",
+  "username_exists": "Username already exists, please choose another one",
+  "email_exists": "This email has already been registered, please use another email",
+  "invalid_email": "Invalid email format, please enter a valid email address",
+  "password_empty": "Password cannot be empty",
+  "token_expired": "Token has expired",
+  "invalid_token": "Invalid token",
+  "invalid_refresh_token": "Invalid refresh token",
+  "refresh_token_failed": "Failed to refresh token",
+  "get_user_failed": "Failed to get user information",
+  "get_user_success": "User information retrieved successfully",
+  "unauthorized": "Unauthorized access"
+}

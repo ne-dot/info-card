@@ -11,6 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from middleware.auth_middleware import auth_middleware
 from utils.logger import setup_logger
 from config.settings import DATABASE_URL
+from middleware.i18n_middleware import I18nMiddleware
+from utils.i18n_utils import get_text
 
 logger = setup_logger('app')
 
@@ -54,6 +56,9 @@ app.add_middleware(
 
 # 添加认证中间件
 app.middleware("http")(auth_middleware)
+
+# 添加国际化中间件
+app.add_middleware(I18nMiddleware)
 
 # 注册路由
 app.include_router(search_controller.router, prefix="/api", tags=["搜索"])
