@@ -9,8 +9,8 @@ logger = setup_logger('jwt_utils')
 # 从环境变量获取密钥，如果不存在则使用默认值
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+ACCESS_TOKEN_EXPIRE_MINUTES = 10080  # 修改为7天 (7*24*60=10080分钟)
+REFRESH_TOKEN_EXPIRE_DAYS = 30  # 刷新令牌也相应延长到30天
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """创建访问令牌"""
