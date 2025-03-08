@@ -16,5 +16,8 @@
   "refresh_token_failed": "刷新令牌失败",
   "get_user_failed": "获取用户信息失败",
   "get_user_success": "获取用户信息成功",
-  "unauthorized": "未授权访问"
+  "unauthorized": "未授权访问",
+  "summary_generation_failed": "无法生成总结，请稍后再试。",
+  "summary_error": "生成总结时发生错误，请稍后再试。",
+  "no_search_results": "未找到相关信息，请尝试其他搜索词。"
 }
