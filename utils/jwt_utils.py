@@ -1,5 +1,6 @@
 import jwt
 from datetime import datetime, timedelta
+from typing import Optional
 from utils.logger import setup_logger
 import os
 
@@ -11,41 +12,41 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-def create_access_token(data: dict):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """创建访问令牌"""
-    try:
-        to_encode = data.copy()
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-        return encoded_jwt, ACCESS_TOKEN_EXPIRE_MINUTES * 60
-    except Exception as e:
-        logger.error(f"创建访问令牌失败: {str(e)}")
-        raise e
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt, int(expires_delta.total_seconds() if expires_delta else ACCESS_TOKEN_EXPIRE_MINUTES * 60)
 
 def create_refresh_token(data: dict):
     """创建刷新令牌"""
-    try:
-        to_encode = data.copy()
-        expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-        return encoded_jwt
-    except Exception as e:
-        logger.error(f"创建刷新令牌失败: {str(e)}")
-        raise e
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
-def decode_token(token: str):
-    """解码令牌"""
+def decode_token(token):
+    """解码JWT令牌"""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        # 确保使用与创建令牌时相同的密钥和算法
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
         return payload
     except jwt.ExpiredSignatureError:
-        logger.warning("令牌已过期")
+        logger.warning(f"令牌已过期")
         return None
     except jwt.InvalidTokenError as e:
         logger.warning(f"无效令牌: {str(e)}")
         return None
     except Exception as e:
-        logger.error(f"解码令牌失败: {str(e)}")
+        logger.error(f"解码令牌时发生错误: {str(e)}")
         return None

@@ -38,15 +38,7 @@ class AuthService:
             if not password or password.strip() == "":
                 logger.warning("密码不能为空")
                 return None, "密码不能为空", ErrorCode.INVALID_PASSWORD
-                
-            if len(password) < 6 or len(password) > 18:
-                logger.warning("密码长度不符合要求，应为6-18位")
-                return None, "密码长度应为6-18位", ErrorCode.INVALID_PASSWORD
-                
-            if not (re.search(r'[A-Za-z]', password) and re.search(r'[0-9]', password)):
-                logger.warning("密码格式无效，需要包含字母和数字")
-                return None, "密码必须包含字母和数字的组合", ErrorCode.INVALID_PASSWORD
-            
+                      
             user, error = await self.user_dao.create_user(username, email, password)
             if error:
                 return None, error, ErrorCode.UNKNOWN_ERROR
@@ -65,19 +57,24 @@ class AuthService:
             logger.error(f"注册失败: {str(e)}")
             return None, f"注册失败: {str(e)}", ErrorCode.UNKNOWN_ERROR
 
-    async def login(self, username, password):
-        """用户登录"""
+    async def login(self, username_or_email, password):
+        """用户登录（支持用户名或邮箱）"""
         try:
-            # 获取用户
-            user = await self.user_dao.get_user_by_username(username)
+            # 尝试通过用户名获取用户
+            user = await self.user_dao.get_user_by_username(username_or_email)
+            
+            # 如果用户名不存在，尝试通过邮箱获取用户
             if not user:
-                logger.warning(f"用户不存在: {username}")
-                return None, "用户名或密码错误"
+                user = await self.user_dao.get_user_by_email(username_or_email)
+                
+            if not user:
+                logger.warning(f"用户不存在: {username_or_email}")
+                return None, "用户名/邮箱或密码错误"
             
             # 验证密码
             if not verify_password(password, user.password_hash):
-                logger.warning(f"密码错误: {username}")
-                return None, "用户名或密码错误"
+                logger.warning(f"密码错误: {username_or_email}")
+                return None, "用户名/邮箱或密码错误"
             
             # 更新最后登录时间
             await self.user_dao.update_last_login(user.user_id)

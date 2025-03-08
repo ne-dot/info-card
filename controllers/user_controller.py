@@ -35,10 +35,10 @@ async def register(user_data: UserCreate):
 
 @router.post("/login", response_model=TokenResponse)
 async def login(login_data: UserLogin):
-    """用户登录"""
+    """用户登录（支持用户名或邮箱）"""
     try:
         token, error = await auth_service.login(
-            login_data.username,
+            login_data.username_or_email,  # 修改这里，使用新的属性名
             login_data.password
         )
         if error:
@@ -67,7 +67,14 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
     if not authorization:
         raise HTTPException(status_code=401, detail="未提供认证信息")
     
-    scheme, token = authorization.split()
+    # More robust splitting of the authorization header
+    parts = authorization.split()
+    if len(parts) < 2:
+        raise HTTPException(status_code=401, detail="认证格式无效")
+    
+    scheme = parts[0]
+    token = ' '.join(parts[1:])  # Join all remaining parts as the token
+    
     if scheme.lower() != "bearer":
         raise HTTPException(status_code=401, detail="认证方案无效")
     
@@ -77,7 +84,11 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
     
     return user
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me")
 async def get_user_info(current_user: UserResponse = Depends(get_current_user)):
     """获取当前用户信息"""
-    return current_user
+    try:
+        return success_response(current_user.dict(), "获取用户信息成功")
+    except Exception as e:
+        logger.error(f"获取用户信息失败: {str(e)}")
+        return error_response(f"获取用户信息失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)

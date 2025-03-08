@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import List
 from services.chat_service import ChatService
 from tools.google_search import search_google_by_text  
+from utils.response_utils import success_response, error_response, ErrorCode
 
 # 添加标记，表示这个路由不需要认证
 router = APIRouter(tags=["搜索"], include_in_schema=True)
@@ -29,7 +30,7 @@ async def search(query: SearchQuery):
         gpt_result = next(r for r in results if r.source is "gpt")
         google_results = [r for r in results if r.source is "google_image"]
         
-        return SearchResponse(
+        searchResults = SearchResponse(
             gpt_summary={
                 "id": str(gpt_result.key_id),
                 "title": gpt_result.title,
@@ -47,5 +48,8 @@ async def search(query: SearchQuery):
                 "date": r.date
             } for r in google_results]
         )
+
+        return success_response(searchResults)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"搜索失败: {str(e)}")
+        return error_response(f"搜索失败: {str(e)}", ErrorCode.SEARCH_FAILED)

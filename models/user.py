@@ -19,7 +19,7 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=6)
 
 class UserLogin(BaseModel):
-    username: str
+    username_or_email: str  # 修改为用户名或邮箱
     password: str
 
 class UserResponse(BaseModel):
