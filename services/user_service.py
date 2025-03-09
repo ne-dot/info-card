@@ -10,7 +10,7 @@ from utils.i18n_utils import get_text
 
 logger = setup_logger('user_service')
 
-class AuthService:
+class UserService:
     def __init__(self, db):
         self.user_dao = UserDAO(db)
 

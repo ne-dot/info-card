@@ -1,8 +1,8 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import uvicorn
-from services.search_service import ChatService
-from services.user_service import AuthService
+from services.search_service import SearchService
+from services.user_service import UserService
 from controllers import search_controller, user_controller
 from database.connection import Database
 from dao.user_dao import UserDAO
@@ -28,8 +28,8 @@ async def lifespan(app: FastAPI):
     # search_dao = SearchDAO(db)
     
     # 初始化服务
-    search_service = ChatService(db)
-    user_service = AuthService(db)
+    search_service = SearchService(db)
+    user_service = UserService(db)
     
     # 初始化控制器
     search_controller.init_controller(search_service)

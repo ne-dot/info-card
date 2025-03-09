@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Header
 from typing import Optional
 from models.user import UserCreate, UserLogin, UserResponse, TokenResponse
-from services.user_service import AuthService
+from services.user_service import UserService
 from utils.logger import setup_logger
 from utils.response_utils import success_response, error_response, ErrorCode
 from utils.i18n_utils import get_text
@@ -11,7 +11,7 @@ router = APIRouter()
 logger = setup_logger('user_controller')
 user_service = None
 
-def init_controller(service: AuthService):
+def init_controller(service: UserService):
     global user_service
     user_service = service
 

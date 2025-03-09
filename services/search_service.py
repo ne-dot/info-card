@@ -12,7 +12,7 @@ logger = setup_logger('search_service')
 
 from langchain.tools import StructuredTool
 
-class ChatService:
+class SearchService:
     def __init__(self, db):
         self.chat = DeepSeekService()
         self.search_dao = SearchDAO(db)

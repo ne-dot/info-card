@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import List
-from services.search_service import ChatService
+from services.search_service import SearchService
 from tools.google_search import search_google_by_text  
 from utils.response_utils import success_response, error_response, ErrorCode
 from utils.logger import setup_logger
@@ -20,7 +20,7 @@ class SearchResponse(BaseModel):
     gpt_summary: dict
     google_results: List[dict]
 
-def init_controller(service: ChatService):
+def init_controller(service: SearchService):
     global search_service
     search_service = service
 
