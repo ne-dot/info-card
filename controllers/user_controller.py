@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Header
 from typing import Optional
 from models.user import UserCreate, UserLogin, UserResponse, TokenResponse
-from services.auth_service import AuthService
+from services.user_service import AuthService
 from utils.logger import setup_logger
 from utils.response_utils import success_response, error_response, ErrorCode
 from utils.i18n_utils import get_text
@@ -9,11 +9,11 @@ from fastapi import Request
 
 router = APIRouter()
 logger = setup_logger('user_controller')
-auth_service = None
+user_service = None
 
 def init_controller(service: AuthService):
-    global auth_service
-    auth_service = service
+    global user_service
+    user_service = service
 
 @router.post("/login", response_model=TokenResponse)
 async def login(login_data: UserLogin, request: Request):
@@ -22,7 +22,7 @@ async def login(login_data: UserLogin, request: Request):
         # 从请求中获取语言设置，默认为英文
         lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
         
-        token, error = await auth_service.login(
+        token, error = await user_service.login(
             login_data.username_or_email,
             login_data.password,
             lang  # 传递语言参数
@@ -41,7 +41,7 @@ async def login(login_data: UserLogin, request: Request):
 async def refresh_token(refresh_token: str = Header(...)):
     """刷新访问令牌"""
     try:
-        token, error = await auth_service.refresh_token(refresh_token)
+        token, error = await user_service.refresh_token(refresh_token)
         if error:
             raise HTTPException(status_code=401, detail=error)
         return token
@@ -65,7 +65,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
     if scheme.lower() != "bearer":
         raise HTTPException(status_code=401, detail="认证方案无效")
     
-    user, error = await auth_service.get_current_user(token)
+    user, error = await user_service.get_current_user(token)
     if error:
         raise HTTPException(status_code=401, detail=error)
     
@@ -92,7 +92,7 @@ async def anonymous_login(request: Request):
         lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
         
         # 创建匿名用户
-        result, error, error_code = await auth_service.create_anonymous_user(lang)
+        result, error, error_code = await user_service.create_anonymous_user(lang)
         if error:
             # 增加更详细的日志记录
             logger.warning(f"匿名登录失败: {error}, 错误码: {error_code}")
@@ -118,7 +118,7 @@ async def register(user_data: UserCreate, request: Request):
         # 从请求头中获取匿名ID（如果有）
         anonymous_id = request.headers.get("X-Anonymous-ID")
         
-        user, error, error_code = await auth_service.register(
+        user, error, error_code = await user_service.register(
             user_data.username, 
             user_data.email, 
             user_data.password,

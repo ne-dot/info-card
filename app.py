@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import uvicorn
 from services.chat_service import ChatService
-from services.auth_service import AuthService
+from services.user_service import AuthService
 from controllers import search_controller, user_controller
 from database.connection import Database
 from dao.user_dao import UserDAO
@@ -29,11 +29,11 @@ async def lifespan(app: FastAPI):
     
     # 初始化服务
     chat_service = ChatService(db)
-    auth_service = AuthService(db)
+    user_service = AuthService(db)
     
     # 初始化控制器
     search_controller.init_controller(chat_service)
-    user_controller.init_controller(auth_service)
+    user_controller.init_controller(user_service)
     
     logger.info("应用程序初始化完成")
     

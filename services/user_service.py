@@ -8,7 +8,7 @@ from utils.response_utils import ErrorCode
 import uuid
 from utils.i18n_utils import get_text
 
-logger = setup_logger('auth_service')
+logger = setup_logger('user_service')
 
 class AuthService:
     def __init__(self, db):
