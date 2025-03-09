@@ -8,7 +8,7 @@ from dao.search_dao import SearchDAO
 from utils.i18n_utils import get_text
 import json
 
-logger = setup_logger('chat_service')
+logger = setup_logger('search_service')
 
 from langchain.tools import StructuredTool
 
