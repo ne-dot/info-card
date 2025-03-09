@@ -15,31 +15,6 @@ def init_controller(service: AuthService):
     global auth_service
     auth_service = service
 
-@router.post("/register", response_model=UserResponse)
-async def register(user_data: UserCreate, request: Request):
-    """注册新用户"""
-    logger.info(f"接收到注册请求: {user_data.username}, {user_data.email}")
-    try:
-        # 从请求中获取语言设置，默认为英文
-        lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
-        
-        user, error, error_code = await auth_service.register(
-            user_data.username, 
-            user_data.email, 
-            user_data.password,
-            lang  # 传递语言参数
-        )
-        if error:
-            logger.error(f"注册失败: {error}")
-            return error_response(error, error_code)
-        
-        logger.info(f"注册成功: {user_data.username}")
-        return success_response(user.dict(), get_text("register_success", lang))
-    except Exception as e:
-        logger.error(f"注册失败: {str(e)}")
-        lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
-        return error_response(f"{get_text('register_failed', lang)}: {str(e)}", ErrorCode.UNKNOWN_ERROR)
-
 @router.post("/login", response_model=TokenResponse)
 async def login(login_data: UserLogin, request: Request):
     """用户登录（支持用户名或邮箱）"""
@@ -108,3 +83,55 @@ async def get_user_info(request: Request, current_user: UserResponse = Depends(g
         logger.error(f"获取用户信息失败: {str(e)}")
         lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
         return error_response(f"{get_text('get_user_failed', lang)}: {str(e)}", ErrorCode.UNKNOWN_ERROR)
+
+@router.post("/anonymous-login", response_model=TokenResponse)
+async def anonymous_login(request: Request):
+    """匿名用户登录"""
+    try:
+        # 从请求中获取语言设置，默认为英文
+        lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
+        
+        # 创建匿名用户
+        result, error, error_code = await auth_service.create_anonymous_user(lang)
+        if error:
+            # 增加更详细的日志记录
+            logger.warning(f"匿名登录失败: {error}, 错误码: {error_code}")
+            return error_response(error, error_code)
+        
+        return success_response(result, get_text("anonymous_login_success", lang))
+    except Exception as e:
+        # 记录详细的异常信息
+        import traceback
+        logger.error(f"匿名登录失败，详细异常: {str(e)}")
+        logger.error(traceback.format_exc())
+        lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
+        return error_response(f"{get_text('anonymous_login_failed', lang)}: {str(e)}", ErrorCode.ANONYMOUS_LOGIN_FAILED)
+
+@router.post("/register", response_model=UserResponse)
+async def register(user_data: UserCreate, request: Request):
+    """注册新用户，支持从匿名用户转换"""
+    logger.info(f"接收到注册请求: {user_data.username}, {user_data.email}")
+    try:
+        # 从请求中获取语言设置，默认为英文
+        lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
+        
+        # 从请求头中获取匿名ID（如果有）
+        anonymous_id = request.headers.get("X-Anonymous-ID")
+        
+        user, error, error_code = await auth_service.register(
+            user_data.username, 
+            user_data.email, 
+            user_data.password,
+            lang,
+            anonymous_id
+        )
+        if error:
+            logger.error(f"注册失败: {error}")
+            return error_response(error, error_code)
+        
+        logger.info(f"注册成功: {user_data.username}")
+        return success_response(user.dict(), get_text("register_success", lang))
+    except Exception as e:
+        logger.error(f"注册失败: {str(e)}")
+        lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
+        return error_response(f"{get_text('register_failed', lang)}: {str(e)}", ErrorCode.UNKNOWN_ERROR)

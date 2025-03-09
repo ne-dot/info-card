@@ -1,5 +1,6 @@
 from typing import Any, Dict, Optional, Union
 from fastapi.responses import JSONResponse
+from enum import Enum  
 
 class ResponseModel:
     """统一响应模型"""
@@ -34,12 +35,17 @@ def success_response(data: Any = None, message: str = "操作成功") -> JSONRes
     """成功响应"""
     return JSONResponse(content=ResponseModel(success=True, data=data, message=message).dict())
 
-def error_response(message: str, error_code: int = 400, data: Any = None) -> JSONResponse:
+def error_response(message: str, error_code: Union[int, Enum] = 400, data: Any = None) -> JSONResponse:
     """错误响应"""
+    # Convert Enum to its value if it's an Enum
+    if isinstance(error_code, Enum):
+        error_code = error_code.value
+    
     return JSONResponse(content=ResponseModel(success=False, data=data, message=message, error_code=error_code).dict())
 
+
 # 错误码定义
-class ErrorCode:
+class ErrorCode(Enum):
     """错误码定义"""
     # 通用错误 (1000-1999)
     UNKNOWN_ERROR = 1000
@@ -53,6 +59,9 @@ class ErrorCode:
     INVALID_PASSWORD = 2004
     EMAIL_ALREADY_EXISTS = 2005
     LOGIN_FAILED = 2006
+    ANONYMOUS_LOGIN_FAILED = 2007
+    CONVERT_USER_FAILED = 2008
+    NOT_ANONYMOUS_USER = 2009
     
     # 认证相关错误 (3000-3999)
     UNAUTHORIZED = 3000
@@ -61,3 +70,4 @@ class ErrorCode:
     
     # 搜索相关错误 (4000-4999)
     SEARCH_FAILED = 4000
+  

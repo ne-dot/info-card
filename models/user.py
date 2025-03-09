@@ -3,15 +3,18 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 import time
 
-class User:
-    def __init__(self, username, email, password_hash, user_id=None, created_at=None, last_login=None):
-        self.user_id = user_id or str(uuid.uuid4())
-        self.username = username
-        self.email = email
-        self.password_hash = password_hash
-        self.created_at = created_at or int(time.time())  # 使用时间戳
-        self.last_login = last_login
-        self.is_active = True
+# 在用户模型中添加 is_anonymous 字段
+class User(BaseModel):
+    user_id: str
+    username: str
+    email: Optional[str] = None
+    password_hash: str
+    created_at: int = Field(default_factory=lambda: int(time.time()))
+    updated_at: int = Field(default_factory=lambda: int(time.time()))
+    last_login: Optional[int] = None
+    is_active: bool = True
+    is_anonymous: bool = False
+    
 
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
@@ -25,9 +28,10 @@ class UserLogin(BaseModel):
 class UserResponse(BaseModel):
     user_id: str
     username: str
-    email: str
+    email: Optional[str] = None  # 修改为可选，因为匿名用户没有邮箱
     created_at: int  # 使用时间戳
     last_login: Optional[int] = None  # 使用时间戳
+    is_anonymous: bool = False  # 添加匿名用户标记
 
 class TokenResponse(BaseModel):
     access_token: str

@@ -19,5 +19,10 @@
   "unauthorized": "未授权访问",
   "summary_generation_failed": "无法生成总结，请稍后再试。",
   "summary_error": "生成总结时发生错误，请稍后再试。",
-  "no_search_results": "未找到相关信息，请尝试其他搜索词。"
+  "no_search_results": "未找到相关信息，请尝试其他搜索词。",
+  "anonymous_login_success": "匿名登录成功",
+  "anonymous_login_failed": "匿名登录失败",
+  "convert_user_success": "用户账号转换成功",
+  "convert_user_failed": "用户账号转换失败",
+  "not_anonymous_user": "当前用户不是匿名用户"
 }

@@ -12,11 +12,13 @@ class UserModel(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(String(36), unique=True, nullable=False)
     username = Column(String(50), unique=True, nullable=False)
-    email = Column(String(100), unique=True, nullable=False)
+    email = Column(String(100), unique=True, nullable=True)  # 允许为空，匿名用户没有邮箱
     password_hash = Column(String(100), nullable=False)
     created_at = Column(Integer, default=lambda: int(time.time()))  # 使用时间戳
     last_login = Column(Integer, nullable=True)  # 使用时间戳
     is_active = Column(Boolean, default=True)
+    is_anonymous = Column(Boolean, default=False)  # 添加匿名用户标记
+    anonymous_id = Column(String(36), nullable=True)  # 匿名用户ID，用于关联转换前后的用户
 
 # 搜索结果表定义
 class SearchResultModel(Base):

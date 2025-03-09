@@ -19,5 +19,10 @@
   "unauthorized": "Unauthorized access",
   "summary_generation_failed": "Unable to generate summary, please try again later.",
   "summary_error": "An error occurred while generating the summary, please try again later.",
-  "no_search_results": "No relevant information found, please try other search terms."
+  "no_search_results": "No relevant information found, please try other search terms.",
+  "anonymous_login_success": "Anonymous login successful",
+  "anonymous_login_failed": "Anonymous login failed",
+  "convert_user_success": "User account successfully converted",
+  "convert_user_failed": "Failed to convert user account",
+  "not_anonymous_user": "Current user is not an anonymous user"
 }
