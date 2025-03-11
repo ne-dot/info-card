@@ -13,12 +13,16 @@ from utils.logger import setup_logger
 from config.settings import DATABASE_URL
 from middleware.i18n_middleware import I18nMiddleware
 from utils.i18n_utils import get_text
+from controllers import news_controller
+from utils.i18n_utils import load_translations
 
 logger = setup_logger('app')
 
 # PostgreSQL 连接字符串
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app):
+    # Startup code
+    load_translations()
     # 初始化数据库
     db = Database(DATABASE_URL)
     db.init_database()
@@ -61,12 +65,21 @@ app.middleware("http")(auth_middleware)
 app.add_middleware(I18nMiddleware)
 
 # 注册路由
+
+# 在注册路由的部分添加
+app.include_router(news_controller.router, prefix="/api")
 app.include_router(search_controller.router, prefix="/api", tags=["搜索"])
 app.include_router(user_controller.router, prefix="/api/users", tags=["用户"])
 
 @app.get("/")
 async def root():
     return {"message": "欢迎使用Info Card API"}
+
+# Remove the old @app.on_event("startup") function
+# @app.on_event("startup")
+# async def startup_event():
+#     # 加载翻译文件
+#     load_translations()
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)

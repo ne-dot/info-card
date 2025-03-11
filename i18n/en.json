@@ -24,5 +24,7 @@
   "anonymous_login_failed": "Anonymous login failed",
   "convert_user_success": "User account successfully converted",
   "convert_user_failed": "Failed to convert user account",
-  "not_anonymous_user": "Current user is not an anonymous user"
+  "not_anonymous_user": "Current user is not an anonymous user",
+  "news.news_item_format": "\n{index}. Title: {title}\n   Description: {description}\n   Categories: {categories}\n   Source: {source}\n   Published Date: {published_date}\n   Link: {link}\n",
+  "news.summary_prompt": "Please generate a tech news summary report based on the above Wired and BBC news content."
 }

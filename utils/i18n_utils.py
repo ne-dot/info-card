@@ -11,10 +11,17 @@ DEFAULT_LANGUAGE = 'en'
 
 # 语言文件缓存
 _translations: Dict[str, Dict[str, str]] = {}
+# 添加一个标志来跟踪是否已加载翻译
+_translations_loaded = False
 
 def load_translations():
     """加载所有语言的翻译文件"""
-    global _translations
+    global _translations, _translations_loaded
+    
+    # 如果已经加载过，则直接返回
+    if _translations_loaded:
+        logger.debug("翻译已加载，跳过重复加载")
+        return
     
     i18n_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'i18n')
     if not os.path.exists(i18n_dir):
@@ -35,10 +42,13 @@ def load_translations():
         except Exception as e:
             logger.error(f"加载语言文件失败 {lang}: {str(e)}")
             _translations[lang] = {}
+    
+    # 设置标志为已加载
+    _translations_loaded = True
 
 def get_text(key: str, lang: Optional[str] = None) -> str:
     """获取指定语言的文本"""
-    if not _translations:
+    if not _translations_loaded:
         load_translations()
     
     # 如果未指定语言或语言不支持，使用默认语言
@@ -50,7 +60,7 @@ def get_text(key: str, lang: Optional[str] = None) -> str:
 
 def set_text(key: str, value: str, lang: str):
     """设置指定语言的文本"""
-    if not _translations:
+    if not _translations_loaded:
         load_translations()
     
     if lang not in SUPPORTED_LANGUAGES:
@@ -70,6 +80,3 @@ def set_text(key: str, value: str, lang: str):
     except Exception as e:
         logger.error(f"保存语言文件失败 {lang}: {str(e)}")
         return False
-
-# 初始化时加载翻译
-load_translations()

@@ -24,5 +24,7 @@
   "anonymous_login_failed": "匿名登录失败",
   "convert_user_success": "用户账号转换成功",
   "convert_user_failed": "用户账号转换失败",
-  "not_anonymous_user": "当前用户不是匿名用户"
+  "not_anonymous_user": "当前用户不是匿名用户",
+  "news.news_item_format": "\n{index}. 标题: {title}\n   描述: {description}\n   分类: {categories}\n   来源: {source}\n   发布日期: {published_date}\n   信息来源地址: {link}\n",
+  "news.summary_prompt": "请根据以上Wired和BBC的新闻内容生成科技新闻总结报告。"
 }
