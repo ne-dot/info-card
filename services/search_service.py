@@ -48,7 +48,7 @@ class SearchService:
             logger.error(f"图片搜索工具调用失败: {str(e)}")
             return "[]"
 
-    async def search_and_respond(self, query: str, lang: str = 'en'):
+    async def search_and_respond(self, query: str, lang: str = 'en',  user_id: str = None, anonymous_id: str = None):
         logger.info(f"接收到查询请求: {query}, 语言: {lang}")
         
         # 手动执行搜索，获取结果
@@ -132,7 +132,8 @@ class SearchService:
     
         # 保存结果到数据库
         try:
-            await self.search_dao.save_search_results(query, final_results)
+            await self.search_dao.save_search_results(query, final_results, user_id=user_id, 
+                anonymous_id=anonymous_id)
             # 简化日志
             logger.info("结果已保存到数据库")
         except Exception as e:

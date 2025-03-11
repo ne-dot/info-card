@@ -38,14 +38,19 @@ class SearchResultModel(Base):
     
     # 外键关联到查询
     query_id = Column(Integer, ForeignKey('search_queries.id'))
+    
+    # 添加用户ID和匿名ID字段
+    user_id = Column(String(36), ForeignKey('users.user_id'), nullable=True)  # 非匿名用户ID
+    anonymous_id = Column(String(36), nullable=True)  # 匿名用户ID
 
 # 搜索查询表定义
 class SearchQueryModel(Base):
     __tablename__ = 'search_queries'
     
     id = Column(Integer, primary_key=True)
-    query_text = Column(String(500), nullable=False)
+    query_text = Column(Text, nullable=False)  # 修改为Text类型，避免长度限制
     date = Column(Integer, default=lambda: int(time.time()))  # 使用时间戳
     
-    # 可以添加用户外键，记录是哪个用户的查询
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    # 修改用户关联字段
+    user_id = Column(String(36), ForeignKey('users.user_id'), nullable=True)  # 非匿名用户ID
+    anonymous_id = Column(String(36), nullable=True)  # 匿名用户ID
