@@ -72,22 +72,26 @@ class SearchService:
             # 英文版本
             if text_results:
                 search_summary += "Text search results:\n" + "\n".join([
-                    f"- {result['title']}\n  Summary: {result['snippet']}\n  Source: {result['link']}"
+                    f"- Title: {result['title']}\n  Summary: {result['snippet']}\n  Source: [{result.get('displayLink', 'Unknown Source')}]({result['link']})"
                     for result in text_results
                 ]) + "\n\n"
+            else:
+                search_summary += "No text search results found.\n\n"
             
             system_prompt = summary_prompt_en
-            human_message = f"Search results:\n{search_summary}\n\nPlease provide a comprehensive summary for the question \"{query}\"."
+            human_message = f"Question: \"{query}\"\n\nSearch results:\n{search_summary}\n\nPlease analyze these search results and provide a comprehensive summary according to the instructions."
         else:
             # 中文版本
             if text_results:
                 search_summary += "文本搜索结果:\n" + "\n".join([
-                    f"- {result['title']}\n  摘要: {result['snippet']}\n  来源: {result['link']}"
+                    f"- 标题: {result['title']}\n  摘要: {result['snippet']}\n  来源: [{result.get('displayLink', '未知来源')}]({result['link']})"
                     for result in text_results
                 ]) + "\n\n"
+            else:
+                search_summary += "未找到文本搜索结果。\n\n"
             
             system_prompt = summary_prompt_cn
-            human_message = f"搜索结果：\n{search_summary}\n\n请针对问题「{query}」提供一个全面的总结。"
+            human_message = f"问题：「{query}」\n\n搜索结果：\n{search_summary}\n\n请根据指示分析这些搜索结果并提供全面的总结。"
         
         # 创建消息列表，直接包含搜索结果
         messages = [
