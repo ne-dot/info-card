@@ -3,7 +3,11 @@ from fastapi import FastAPI
 import uvicorn
 from services.search_service import SearchService
 from services.user_service import UserService
-from controllers import search_controller, user_controller
+from services.news_service import NewsService
+from services.wired_news_service import WireNewsService
+from services.bbc_news_service import BBCNewsService
+from services.deepseek_service import DeepSeekService
+from controllers import search_controller, user_controller, news_controller
 from database.connection import Database
 from dao.user_dao import UserDAO
 from dao.search_dao import SearchDAO
@@ -35,9 +39,21 @@ async def lifespan(app):
     search_service = SearchService(db)
     user_service = UserService(db)
     
+    # 初始化新闻服务
+    wired_service = WireNewsService()
+    bbc_service = BBCNewsService()
+    chat_service = DeepSeekService()
+    news_service = NewsService(wired_service, bbc_service, chat_service, db)
+    
+    # 将服务实例存储到应用状态中
+    app.state.search_service = search_service
+    app.state.user_service = user_service
+    app.state.news_service = news_service
+    
     # 初始化控制器
     search_controller.init_controller(search_service)
     user_controller.init_controller(user_service)
+    news_controller.init_controller(news_service)
     
     logger.info("应用程序初始化完成")
     

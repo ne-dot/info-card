@@ -5,13 +5,16 @@ from utils.logger import setup_logger
 import aiohttp
 from models.news import NewsItem
 from typing import List, Optional
+from config.settings import NEWS_SETTINGS
 
 logger = setup_logger('news_service')
 
 class WireNewsService:
+    """Wired科技新闻服务"""
+    
     def __init__(self):
-        self.wired_rss_url = "https://www.wired.com/feed/"
-
+        self.rss_url = NEWS_SETTINGS["rss_urls"]["wired"]
+        
     async def get_wired_news(self, limit: int = 10) -> List[NewsItem]:
         """
         获取Wired科技新闻
@@ -27,7 +30,7 @@ class WireNewsService:
             
             # 使用aiohttp异步获取RSS内容
             async with aiohttp.ClientSession() as session:
-                async with session.get(self.wired_rss_url) as response:
+                async with session.get(self.rss_url) as response:
                     if response.status != 200:
                         logger.error(f"获取Wired RSS失败: HTTP状态码 {response.status}")
                         return []

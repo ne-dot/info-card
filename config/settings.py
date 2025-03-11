@@ -16,3 +16,23 @@ DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
 # 数据库配置
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://neondb_owner:npg_wgixrLkJB31N@ep-wandering-dawn-a8c402vl-pooler.eastus2.azure.neon.tech/neondb?sslmode=require")
+
+
+"""
+应用程序配置设置
+"""
+
+# 新闻服务配置
+NEWS_SETTINGS = {
+    # RSS源URL
+    "rss_urls": {
+        "wired": "https://www.wired.com/feed/",
+        "bbc": "https://feeds.bbci.co.uk/news/technology/rss.xml"
+    },
+    
+    # 默认获取的新闻数量
+    "default_news_limit": 10,
+    
+    # 最大新闻数量限制
+    "max_news_limit": 50
+}
