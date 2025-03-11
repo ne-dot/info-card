@@ -20,3 +20,4 @@ class I18nMiddleware(BaseHTTPMiddleware):
         # 继续处理请求
         response = await call_next(request)
         return response
+        
