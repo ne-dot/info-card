@@ -75,27 +75,25 @@ class NewsService:
             is_chinese = lang.startswith('zh')
             logger.info(f"使用{'中文' if is_chinese else '英文'}生成新闻总结")
             
-            # 3. 保存新闻到数据库 - 使用NewsDAO
-            db_news_items = self.news_dao.save_news_to_db(all_news_items)
+            # 3. 创建触发记录 - 先创建触发记录
+            user_id = request.state.user.user_id if hasattr(request.state, 'user') else None
+            trigger_result = self.news_dao.create_trigger_record(user_id, request.client.host)
+            trigger_id = trigger_result["id"]
             
-            # 4. 构建新闻文本
+            # 4. 保存新闻到数据库 - 使用NewsDAO，并传入trigger_id
+            self.news_dao.save_news_to_db(all_news_items, trigger_id)
+            
+            # 5. 构建新闻文本
             news_item_format = get_text("news.news_item_format", lang)
             news_text = self.build_news_text(all_news_items, news_item_format)
             
-            # 5. 准备AI请求
+            # 6. 准备AI请求
             prompt_content = get_news_summary_prompt(news_text) if is_chinese else get_news_summary_prompt_en(news_text)
             human_message = get_text("news.summary_prompt", lang)
             messages = [
                 SystemMessage(content=prompt_content),
                 HumanMessage(content=human_message)
             ]
-            
-            # 在generate_news_summary方法中修改以下部分:
-            
-            # 6. 创建触发记录 - 使用NewsDAO
-            user_id = request.state.user.user_id if hasattr(request.state, 'user') else None
-            trigger_result = self.news_dao.create_trigger_record(user_id, request.client.host)
-            trigger_id = trigger_result["id"]
             
             # 7. 调用AI生成摘要
             logger.info("开始生成新闻总结")
@@ -107,8 +105,8 @@ class NewsService:
                 logger.info("新闻总结生成成功")
                 
                 # 9. 保存摘要到数据库 - 使用NewsDAO
-                news_item_ids = [item.id for item in db_news_items]
-                self.news_dao.save_summary_to_db(summary, lang, trigger_id, news_item_ids)
+                # No need to extract IDs since we're already returning them
+                self.news_dao.save_summary_to_db(summary, lang, trigger_id)
                 
                 return {
                     "summary": summary,
@@ -117,8 +115,7 @@ class NewsService:
                 }
             else:
                 logger.error("新闻总结响应无效")
-                # 使用NewsDAO更新触发记录为失败
-                self.news_dao.update_trigger_failure(trigger_id, "AI响应无效")  # 修改这里，使用trigger_id而不是trigger.id
+                self.news_dao.update_trigger_failure(trigger_id, "AI响应无效")
                 return {"error": "生成新闻总结失败", "code": "AI_RESPONSE_ERROR"}
                 
         except Exception as e:

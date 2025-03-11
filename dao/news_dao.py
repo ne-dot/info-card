@@ -11,11 +11,18 @@ class NewsDAO:
     def __init__(self, db):
         self.db = db
     
-    def save_news_to_db(self, news_items: List[NewsItem]) -> List[News]:
-        """将新闻保存到数据库"""
+    def save_news_to_db(self, news_items: List[NewsItem], trigger_id: int = None) -> List[int]:
+        """将新闻保存到数据库，并可选关联到触发记录"""
         db_news_items = []
         session = self.db.get_session()
         try:
+            # 如果提供了trigger_id，获取触发记录
+            trigger = None
+            if trigger_id:
+                trigger = session.query(NewsSummaryTrigger).get(trigger_id)
+                if not trigger:
+                    logger.warning(f"找不到ID为{trigger_id}的触发记录")
+            
             for item in news_items:
                 # 检查新闻是否已存在
                 existing_news = session.query(News).filter(News.link == item.link).first()
@@ -35,8 +42,26 @@ class NewsDAO:
                     db_news_items.append(db_news)
                 else:
                     db_news_items.append(existing_news)
+                
+                # 如果有触发记录，关联新闻和触发记录
+                if trigger:
+                    news_to_link = existing_news if existing_news else db_news
+                    
+                    # 使用ORM方式检查关联是否已存在
+                    from sqlalchemy.orm import contains_eager
+                    exists = session.query(NewsSummaryTrigger).\
+                        filter(NewsSummaryTrigger.id == trigger.id).\
+                        filter(NewsSummaryTrigger.news_items.any(id=news_to_link.id)).\
+                        first() is not None
+                    
+                    if not exists and news_to_link not in trigger.news_items:
+                        trigger.news_items.append(news_to_link)
             
-            return db_news_items
+            # 提交事务
+            session.commit()
+            
+            # 返回新闻ID列表而不是对象，避免会话关闭后的问题
+            return [news.id for news in db_news_items]
         except Exception as e:
             logger.error(f"保存新闻到数据库失败: {str(e)}")
             session.rollback()
@@ -67,21 +92,15 @@ class NewsDAO:
             session.close()
     
     def save_summary_to_db(self, summary_content: str, language: str, 
-                      trigger_id: int, news_item_ids: List[int]) -> NewsSummary:
+                  trigger_id: int) -> NewsSummary:
         """保存摘要到数据库"""
         session = self.db.get_session()
         try:
             # 获取触发器对象
             trigger = session.query(NewsSummaryTrigger).get(trigger_id)
             if not trigger:
-                logger.error(f"找不到ID为{trigger_id}的触发记录，尝试创建新记录")
-                # 如果找不到触发记录，创建一个新的
-                trigger = NewsSummaryTrigger(
-                    trigger_type="manual",
-                    created_at=int(time.time())
-                )
-                session.add(trigger)
-                session.flush()
+                logger.error(f"找不到ID为{trigger_id}的触发记录")
+                raise ValueError(f"找不到ID为{trigger_id}的触发记录")
                 
             # 创建摘要记录
             db_summary = NewsSummary(
@@ -96,12 +115,6 @@ class NewsDAO:
             # 更新触发记录关联摘要
             trigger.summary_id = db_summary.id
             trigger.success = True
-            
-            # 关联新闻和触发记录
-            for news_id in news_item_ids:
-                news_item = session.query(News).get(news_id)
-                if news_item:
-                    trigger.news_items.append(news_item)
             
             session.commit()
             return db_summary
