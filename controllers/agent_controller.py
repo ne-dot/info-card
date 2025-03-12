@@ -5,6 +5,8 @@ from utils.response_utils import success_response, error_response, ErrorCode
 import json
 from database.models import Agent
 from config.prompts.search_prompts import summary_prompt_en, summary_prompt_cn
+from config.prompts.news_prompts import get_news_summary_prompt_en, get_news_summary_prompt
+from config.prompts.news_prompts import BASE_PROMPT_EN, BASE_PROMPT_ZH
 import uuid
 import time
 
@@ -65,6 +67,8 @@ async def create_search_agent():
             agent = Agent(
                 key_id=str(uuid.uuid4()),
                 name="AI查询agent",
+                name_zh="AI查询agent",
+                name_en="AI Search Agent",
                 type="search",
                 model="deepseek",
                 prompt_en=summary_prompt_en,
@@ -90,3 +94,39 @@ async def create_search_agent():
     except Exception as e:
         logger.error(f"创建搜索Agent失败: {str(e)}")
         return error_response(f"创建搜索Agent失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
+
+
+@router.post("/agent/create_technews_agent")
+async def create_technews_agent():
+    """创建一个技术新闻处理的Agent"""
+    try:
+        session = agent_dao.db.get_session()
+        with session:
+            agent = Agent(
+                key_id=str(uuid.uuid4()),
+                name="科技新闻agent",
+                name_zh="科技新闻agent",
+                name_en="Tech News Agent",
+                type="technews",
+                model="deepseek",
+                prompt_en=BASE_PROMPT_EN,
+                prompt_zh=BASE_PROMPT_ZH,
+                description="用于分析和总结科技新闻的智能代理",
+                create_date=int(time.time()),
+                update_date=int(time.time())
+            )
+            session.add(agent)
+            session.commit()
+            
+            agent_data = {
+                'key_id': agent.key_id,
+                'name': agent.name,
+                'type': agent.type,
+                'model': agent.model,
+                'create_date': agent.create_date
+            }
+        
+        return success_response(agent_data)
+    except Exception as e:
+        logger.error(f"创建技术新闻Agent失败: {str(e)}")
+        return error_response(f"创建技术新闻Agent失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)

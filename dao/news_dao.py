@@ -11,7 +11,7 @@ class NewsDAO:
     def __init__(self, db):
         self.db = db
     
-    def save_news_to_db(self, news_items: List[NewsItem], trigger_id: int = None) -> List[int]:
+    def save_news_to_db(self, news_items: List[NewsItem], trigger_id: str = None) -> List[int]:
         """将新闻保存到数据库，并可选关联到触发记录"""
         db_news_items = []
         session = self.db.get_session()
@@ -19,9 +19,10 @@ class NewsDAO:
             # 如果提供了trigger_id，获取触发记录
             trigger = None
             if trigger_id:
-                trigger = session.query(NewsSummaryTrigger).get(trigger_id)
+                # 使用key_id查询触发记录
+                trigger = session.query(NewsSummaryTrigger).filter(NewsSummaryTrigger.key_id == trigger_id).first()
                 if not trigger:
-                    logger.warning(f"找不到ID为{trigger_id}的触发记录")
+                    logger.warning(f"找不到key_id为{trigger_id}的触发记录")
             
             for item in news_items:
                 # 检查新闻是否已存在
@@ -50,7 +51,7 @@ class NewsDAO:
                     # 使用ORM方式检查关联是否已存在
                     from sqlalchemy.orm import contains_eager
                     exists = session.query(NewsSummaryTrigger).\
-                        filter(NewsSummaryTrigger.id == trigger.id).\
+                        filter(NewsSummaryTrigger.key_id == trigger.key_id).\
                         filter(NewsSummaryTrigger.news_items.any(id=news_to_link.id)).\
                         first() is not None
                     
@@ -69,7 +70,7 @@ class NewsDAO:
         finally:
             session.close()
     
-    def create_trigger_record(self, user_id: Optional[str], ip_address: str, trigger_type: str = "manual") -> dict:
+    def create_trigger_record(self, user_id: Optional[str], ip_address: str, agent_id: Optional[str] = None, trigger_type: str = "manual") -> dict:
         """创建触发记录，返回触发记录ID和对象"""
         session = self.db.get_session()
         try:
@@ -77,13 +78,14 @@ class NewsDAO:
                 trigger_type=trigger_type,
                 user_id=user_id,
                 ip_address=ip_address,
+                agent_id=agent_id,
                 created_at=int(time.time())
             )
             session.add(trigger)
             session.commit()  # 使用commit而不是flush，确保数据被保存
             
-            # 返回触发记录ID和对象
-            return {"id": trigger.id, "object": trigger}
+            # 返回触发记录key_id，不再返回id
+            return {"key_id": trigger.key_id, "object": trigger}
         except Exception as e:
             logger.error(f"创建触发记录失败: {str(e)}")
             session.rollback()
@@ -92,15 +94,15 @@ class NewsDAO:
             session.close()
     
     def save_summary_to_db(self, summary_content: str, language: str, 
-                  trigger_id: int) -> NewsSummary:
+                  trigger_key_id: str) -> NewsSummary:
         """保存摘要到数据库"""
         session = self.db.get_session()
         try:
-            # 获取触发器对象
-            trigger = session.query(NewsSummaryTrigger).get(trigger_id)
+            # 使用key_id查询触发器对象
+            trigger = session.query(NewsSummaryTrigger).filter(NewsSummaryTrigger.key_id == trigger_key_id).first()
             if not trigger:
-                logger.error(f"找不到ID为{trigger_id}的触发记录")
-                raise ValueError(f"找不到ID为{trigger_id}的触发记录")
+                logger.error(f"找不到key_id为{trigger_key_id}的触发记录")
+                raise ValueError(f"找不到key_id为{trigger_key_id}的触发记录")
                 
             # 创建摘要记录
             db_summary = NewsSummary(
@@ -125,17 +127,18 @@ class NewsDAO:
         finally:
             session.close()
     
-    def update_trigger_failure(self, trigger_id: int, error_message: str) -> None:
+    def update_trigger_failure(self, trigger_key_id: str, error_message: str) -> None:
         """更新触发记录为失败状态"""
         session = self.db.get_session()
         try:
-            trigger = session.query(NewsSummaryTrigger).get(trigger_id)
+            # 使用key_id查询触发器对象
+            trigger = session.query(NewsSummaryTrigger).filter(NewsSummaryTrigger.key_id == trigger_key_id).first()
             if trigger:
                 trigger.success = False
                 trigger.error_message = error_message
                 session.commit()
             else:
-                logger.error(f"找不到ID为{trigger_id}的触发记录")
+                logger.error(f"找不到key_id为{trigger_key_id}的触发记录")
         except Exception as e:
             logger.error(f"更新触发记录失败: {str(e)}")
             session.rollback()

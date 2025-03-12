@@ -57,6 +57,16 @@ class SearchQueryModel(Base):
     anonymous_id = Column(String(36), nullable=True)  # 匿名用户ID
 
 
+# 首先定义映射表
+news_trigger_mapping = Table(
+    "news_trigger_mapping",
+    Base.metadata,
+    Column("id", Integer, primary_key=True),  # 添加自增主键
+    Column("news_id", Integer, ForeignKey("news.id"), nullable=False),
+    Column("trigger_id", String(36), ForeignKey("news_summary_triggers.key_id"), nullable=False)
+)
+
+# 然后定义 News 类
 class News(Base):
     """新闻数据表模型"""
     __tablename__ = "news"
@@ -71,7 +81,7 @@ class News(Base):
     categories = Column(String(255), nullable=True)  # 以逗号分隔的分类
     
     # 与触发记录的关系
-    triggers = relationship("NewsSummaryTrigger", secondary="news_trigger_mapping", back_populates="news_items")
+    triggers = relationship("NewsSummaryTrigger", secondary=news_trigger_mapping, back_populates="news_items")
 
 class NewsSummary(Base):
     """新闻AI总结数据表模型"""
@@ -79,27 +89,21 @@ class NewsSummary(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     summary_content = Column(Text, nullable=False)
-    language = Column(String(10), nullable=False, default="en")  # 'zh', 'en' 等
-    created_at = Column(Integer, default=lambda: int(time.time()))  # 使用时间戳
-    type = Column(String(50), default="auto")  # 摘要类型，如 'auto', 'manual', 'daily' 等
+    language = Column(String(10), nullable=False, default="en")
+    created_at = Column(Integer, default=lambda: int(time.time()))
+    type = Column(String(50), default="auto")
     
-    # 与触发记录的一对多关系
+    # 修改关系名称为 triggers
     triggers = relationship("NewsSummaryTrigger", back_populates="summary")
 
-# 新闻和触发记录的多对多映射表
-news_trigger_mapping = Table(
-    "news_trigger_mapping",
-    Base.metadata,
-    Column("news_id", Integer, ForeignKey("news.id"), primary_key=True),
-    Column("trigger_id", Integer, ForeignKey("news_summary_triggers.id"), primary_key=True)
-)
-
+# 最后定义 NewsSummaryTrigger 类
 class NewsSummaryTrigger(Base):
     """新闻总结触发记录表"""
     __tablename__ = "news_summary_triggers"
     
-    id = Column(Integer, primary_key=True, index=True)
-    summary_id = Column(Integer, ForeignKey("news_summaries.id"))
+    key_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
+    summary_id = Column(Integer, ForeignKey("news_summaries.id"), nullable=True)
+    agent_id = Column(String(36), ForeignKey("agents.key_id"), nullable=True)
     trigger_type = Column(String(50), nullable=False)  # 'manual', 'scheduled' 等
     user_id = Column(String(36), ForeignKey('users.user_id'), nullable=True)  # 如果是用户触发的，记录用户ID
     ip_address = Column(String(50), nullable=True)  # 记录请求IP
@@ -107,10 +111,10 @@ class NewsSummaryTrigger(Base):
     error_message = Column(Text, nullable=True)  # 如果失败，记录错误信息
     created_at = Column(Integer, default=lambda: int(time.time()))  # 使用时间戳
     
-    # 与摘要的关系
+    # 与摘要的一对一关系
     summary = relationship("NewsSummary", back_populates="triggers")
-    # 与新闻的多对多关系
-    news_items = relationship("News", secondary="news_trigger_mapping", back_populates="triggers")
+    news_items = relationship("News", secondary=news_trigger_mapping, back_populates="triggers")
+    agent = relationship("Agent")
 
 # 新增 Agent 模型
 class Agent(Base):
@@ -119,7 +123,9 @@ class Agent(Base):
     
     # 使用key_id作为主键，不再使用自增id
     key_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
-    name = Column(String(100), nullable=False)
+    name = Column(String(100), nullable=False)  # 默认名称
+    name_en = Column(String(100), nullable=True)  # 英文名称
+    name_zh = Column(String(100), nullable=True)  # 中文名称
     description = Column(Text, nullable=True)  # Agent的详细描述
     type = Column(String(50), nullable=False, default="assistant")  # agent类型，如 'assistant', 'search', 'expert' 等
     prompt_en = Column(Text, nullable=False)  # 英文提示词

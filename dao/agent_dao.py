@@ -112,3 +112,26 @@ class AgentDAO:
             raise e
         finally:
             session.close()
+    
+    def update_agent_trigger_date(self, agent_id: str) -> bool:
+        """
+        更新Agent的最后触发时间
+        
+        Args:
+            agent_id: Agent的key_id
+            
+        Returns:
+            bool: 更新是否成功
+        """
+        try:
+            session = self.db.get_session()
+            with session:
+                agent = session.query(Agent).filter(Agent.key_id == agent_id).first()
+                if agent:
+                    agent.trigger_date = int(time.time())
+                    session.commit()
+                    return True
+                return False
+        except Exception as e:
+            self.logger.error(f"更新Agent触发时间失败: {str(e)}")
+            return False
