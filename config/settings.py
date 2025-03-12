@@ -27,7 +27,9 @@ NEWS_SETTINGS = {
     # RSS源URL
     "rss_urls": {
         "wired": "https://www.wired.com/feed/",
-        "bbc": "https://feeds.bbci.co.uk/news/technology/rss.xml"
+        "bbc": "https://feeds.bbci.co.uk/news/technology/rss.xml",
+        "bbc_football": "https://feeds.bbci.co.uk/sport/football/rss.xml",
+        "espc_soccer": "https://www.espn.com/espn/rss/soccer/news"
     },
     
     # 默认获取的新闻数量
