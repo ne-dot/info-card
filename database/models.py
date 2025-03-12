@@ -111,3 +111,21 @@ class NewsSummaryTrigger(Base):
     summary = relationship("NewsSummary", back_populates="triggers")
     # 与新闻的多对多关系
     news_items = relationship("News", secondary="news_trigger_mapping", back_populates="triggers")
+
+# 新增 Agent 模型
+class Agent(Base):
+    """Agent 模型，用于存储智能代理配置"""
+    __tablename__ = "agents"
+    
+    # 使用key_id作为主键，不再使用自增id
+    key_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)  # Agent的详细描述
+    type = Column(String(50), nullable=False, default="assistant")  # agent类型，如 'assistant', 'search', 'expert' 等
+    prompt_en = Column(Text, nullable=False)  # 英文提示词
+    prompt_zh = Column(Text, nullable=True)  # 中文提示词
+    model = Column(String(100), nullable=False)  # 使用的模型，如 'gpt-4', 'deepseek' 等
+    tools = Column(Text, nullable=True)  # 存储工具配置，可以是JSON格式
+    create_date = Column(Integer, default=lambda: int(time.time()))
+    update_date = Column(Integer, default=lambda: int(time.time()), onupdate=lambda: int(time.time()))
+    trigger_date = Column(Integer, nullable=True)  # 最后一次触发时间

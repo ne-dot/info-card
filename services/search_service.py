@@ -5,6 +5,7 @@ from models.search_result import SearchResult
 from services.deepseek_service import DeepSeekService
 from tools.google_search import search_google_by_text, search_google_by_image
 from dao.search_dao import SearchDAO
+from dao.agent_dao import AgentDAO
 from utils.i18n_utils import get_text
 import json
 
@@ -16,6 +17,7 @@ class SearchService:
     def __init__(self, db):
         self.chat = DeepSeekService()
         self.search_dao = SearchDAO(db)
+        self.agent_dao = AgentDAO(db)  # 添加AgentDAO
         # 定义搜索工具
         self.text_search_tool = StructuredTool.from_function(
             func=self._text_search_wrapper,
@@ -67,7 +69,7 @@ class SearchService:
         # 准备搜索结果摘要
         search_summary = ""
         
-        # 根据语言选择不同的提示词和搜索结果格式
+        # 根据语言选择不同的搜索结果格式
         if lang.startswith('en'):
             # 英文版本
             if text_results:
@@ -78,7 +80,6 @@ class SearchService:
             else:
                 search_summary += "No text search results found.\n\n"
             
-            system_prompt = summary_prompt_en
             human_message = f"Question: \"{query}\"\n\nSearch results:\n{search_summary}\n\nPlease analyze these search results and provide a comprehensive summary according to the instructions."
         else:
             # 中文版本
@@ -90,8 +91,27 @@ class SearchService:
             else:
                 search_summary += "未找到文本搜索结果。\n\n"
             
-            system_prompt = summary_prompt_cn
             human_message = f"问题：「{query}」\n\n搜索结果：\n{search_summary}\n\n请根据指示分析这些搜索结果并提供全面的总结。"
+        
+        # 从数据库获取搜索类型的agent
+        try:
+            search_agents = self.agent_dao.get_agents_by_type("search")
+            
+            if search_agents:
+                # 使用第一个搜索agent
+                search_agent = search_agents[0]
+                logger.info(f"使用搜索Agent: {search_agent.name}, key_id: {search_agent.key_id}")
+                
+                # 根据语言选择提示词
+                system_prompt = search_agent.prompt_en if lang.startswith('en') else search_agent.prompt_zh
+            else:
+                logger.warning("未找到搜索Agent，使用默认提示词")
+                # 使用默认提示词
+                system_prompt = summary_prompt_en if lang.startswith('en') else summary_prompt_cn
+        except Exception as e:
+            logger.error(f"获取搜索Agent失败: {str(e)}")
+            # 使用默认提示词
+            system_prompt = summary_prompt_en if lang.startswith('en') else summary_prompt_cn
         
         # 创建消息列表，直接包含搜索结果
         messages = [

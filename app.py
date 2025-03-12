@@ -7,7 +7,7 @@ from services.news_service import NewsService
 from services.wired_news_service import WireNewsService
 from services.bbc_news_service import BBCNewsService
 from services.deepseek_service import DeepSeekService
-from controllers import search_controller, user_controller, news_controller
+from controllers import search_controller, user_controller, news_controller, agent_controller
 from database.connection import Database
 from dao.user_dao import UserDAO
 from dao.search_dao import SearchDAO
@@ -54,6 +54,7 @@ async def lifespan(app):
     search_controller.init_controller(search_service)
     user_controller.init_controller(user_service)
     news_controller.init_controller(news_service)
+    agent_controller.init_controller(db)  # 初始化Agent控制器
     
     logger.info("应用程序初始化完成")
     
@@ -86,6 +87,7 @@ app.add_middleware(I18nMiddleware)
 app.include_router(news_controller.router, prefix="/api")
 app.include_router(search_controller.router, prefix="/api", tags=["搜索"])
 app.include_router(user_controller.router, prefix="/api/users", tags=["用户"])
+app.include_router(agent_controller.router, prefix="/api", tags=["Agent"])  # 注册Agent路由
 
 @app.get("/")
 async def root():
