@@ -29,7 +29,9 @@ NEWS_SETTINGS = {
         "wired": "https://www.wired.com/feed/",
         "bbc": "https://feeds.bbci.co.uk/news/technology/rss.xml",
         "bbc_football": "https://feeds.bbci.co.uk/sport/football/rss.xml",
-        "espc_soccer": "https://www.espn.com/espn/rss/soccer/news"
+        "espc_soccer": "https://www.espn.com/espn/rss/soccer/news",
+        "bbc_business": "https://feeds.bbci.co.uk/news/business/rss.xml",
+        "cnbc": "https://www.cnbc.com/id/10001147/device/rss/rss.html"
     },
     
     # 默认获取的新闻数量

@@ -4,30 +4,32 @@ from sqlalchemy import select
 import uuid
 import time
 from utils.password_utils import hash_password
+from datetime import datetime
 
 class UserDAO:
     def __init__(self, db):
         self.db = db
     
     async def create_user(self, username, email, password):
-        """创建新用户，支持匿名用户标记"""
+        """创建新用户"""
         try:
-            user_id = str(uuid.uuid4())
-            now = int(time.time())
-            
             # 获取会话
             session = self.db.get_session()
             try:
                 # 创建用户模型
+                now = int(time.time())
                 user_model = UserModel(
-                    user_id=user_id,
-                    username=username,
+                    id=str(uuid.uuid4()),
+                    auth_type='email',
+                    auth_id=email,
                     email=email,
+                    username=username,
                     password_hash=hash_password(password),
                     created_at=now,
-                    last_login=now,
-                    is_anonymous=False,
-                    anonymous_id=None 
+                    updated_at=now,
+                    last_login_at=now,
+                    account_status='active',
+                    is_deleted=False
                 )
                 
                 # 添加到数据库
@@ -36,13 +38,13 @@ class UserDAO:
                 
                 # 转换为业务模型
                 return User(
-                    user_id=user_model.user_id,
+                    user_id=user_model.id,
                     username=user_model.username,
                     email=user_model.email,
                     password_hash=user_model.password_hash,
                     created_at=user_model.created_at,
-                    last_login=user_model.last_login,
-                    is_anonymous=user_model.is_anonymous
+                    last_login=user_model.last_login_at,
+                    is_anonymous=False
                 ), None
             except Exception as e:
                 session.rollback()
@@ -58,8 +60,9 @@ class UserDAO:
     async def create_anonymous_user(self, username, password, anonymous_id=None):
         """创建匿名用户"""
         try:
-            user_id = str(uuid.uuid4())
-            now = int(time.time())
+            # 如果没有提供匿名ID，生成一个
+            if not anonymous_id:
+                anonymous_id = str(uuid.uuid4())
             
             # 哈希密码
             password_hash = hash_password(password)
@@ -68,15 +71,18 @@ class UserDAO:
             session = self.db.get_session()
             try:
                 # 创建用户模型
+                now = int(time.time())
                 user_model = UserModel(
-                    user_id=user_id,
+                    id=str(uuid.uuid4()),
+                    auth_type='anonymous',
+                    auth_id=anonymous_id,
                     username=username,
-                    email=None,  # 匿名用户没有邮箱
                     password_hash=password_hash,
                     created_at=now,
-                    last_login=now,
-                    is_anonymous=True,
-                    anonymous_id=anonymous_id
+                    updated_at=now,
+                    last_login_at=now,
+                    account_status='active',
+                    is_deleted=False
                 )
                 
                 # 添加到数据库
@@ -85,12 +91,12 @@ class UserDAO:
                 
                 # 转换为业务模型
                 return User(
-                    user_id=user_model.user_id,
+                    user_id=user_model.id,
                     username=user_model.username,
-                    email=user_model.email,
+                    email=None,
                     password_hash=user_model.password_hash,
                     created_at=user_model.created_at,
-                    last_login=user_model.last_login,
+                    last_login=user_model.last_login_at,
                     is_anonymous=True
                 )
             except Exception as e:
@@ -109,17 +115,21 @@ class UserDAO:
         try:
             session = self.db.get_session()
             try:
-                from database.models import UserModel
-                user_model = session.query(UserModel).filter(UserModel.anonymous_id == anonymous_id).first()
+                # 查询条件改为 auth_type='anonymous' 且 auth_id=anonymous_id
+                user_model = session.query(UserModel).filter(
+                    UserModel.auth_type == 'anonymous',
+                    UserModel.auth_id == anonymous_id
+                ).first()
+                
                 if user_model:
                     return User(
-                        user_id=user_model.user_id,
+                        user_id=user_model.id,
                         username=user_model.username,
                         email=user_model.email,
                         password_hash=user_model.password_hash,
-                        created_at=user_model.created_at,
-                        last_login=user_model.last_login,
-                        is_anonymous=user_model.is_anonymous
+                        created_at=user_model.created_at,  # 直接使用整数时间戳
+                        last_login=user_model.last_login_at,  # 直接使用整数时间戳
+                        is_anonymous=True
                     )
                 return None
             finally:
@@ -135,21 +145,23 @@ class UserDAO:
         try:
             session = self.db.get_session()
             try:
-                from database.models import UserModel
                 user_model = session.query(UserModel).filter(UserModel.username == username).first()
                 if user_model:
                     return User(
-                        user_id=user_model.user_id,
+                        user_id=user_model.id,
                         username=user_model.username,
                         email=user_model.email,
                         password_hash=user_model.password_hash,
-                        created_at=user_model.created_at,
-                        last_login=user_model.last_login
+                        created_at=user_model.created_at,  # 直接使用整数时间戳
+                        last_login=user_model.last_login_at,  # 直接使用整数时间戳
+                        is_anonymous=(user_model.auth_type == 'anonymous')
                     )
                 return None
             finally:
                 session.close()
         except Exception as e:
+            from utils.logger import setup_logger
+            logger = setup_logger('user_dao')
             logger.error(f"获取用户失败: {str(e)}")
             return None
 
@@ -158,20 +170,23 @@ class UserDAO:
         try:
             session = self.db.get_session()
             try:
-                from database.models import UserModel
                 user_model = session.query(UserModel).filter(UserModel.email == email).first()
                 if user_model:
                     return User(
-                        user_id=user_model.user_id,
+                        user_id=user_model.id,
                         username=user_model.username,
                         email=user_model.email,
                         password_hash=user_model.password_hash,
-                        # 移除 created_at 参数，或者确保 User 类支持这个参数
+                        created_at=user_model.created_at,  # 直接使用整数时间戳
+                        last_login=user_model.last_login_at,  # 直接使用整数时间戳
+                        is_anonymous=(user_model.auth_type == 'anonymous')
                     )
                 return None
             finally:
                 session.close()
         except Exception as e:
+            from utils.logger import setup_logger
+            logger = setup_logger('user_dao')
             logger.error(f"获取用户失败: {str(e)}")
             return None
 
@@ -180,20 +195,23 @@ class UserDAO:
         try:
             session = self.db.get_session()
             try:
-                from database.models import UserModel
-                user_model = session.query(UserModel).filter(UserModel.user_id == user_id).first()
+                user_model = session.query(UserModel).filter(UserModel.id == user_id).first()
                 if user_model:
                     return User(
-                        user_id=user_model.user_id,
+                        user_id=user_model.id,
                         username=user_model.username,
                         email=user_model.email,
                         password_hash=user_model.password_hash,
-                        # 移除 created_at 和 last_login 参数
+                        created_at=user_model.created_at,  # 直接使用整数时间戳
+                        last_login=user_model.last_login_at,  # 直接使用整数时间戳
+                        is_anonymous=(user_model.auth_type == 'anonymous')
                     )
                 return None
             finally:
                 session.close()
         except Exception as e:
+            from utils.logger import setup_logger
+            logger = setup_logger('user_dao')
             logger.error(f"获取用户失败: {str(e)}")
             return None
 
@@ -202,10 +220,11 @@ class UserDAO:
         try:
             session = self.db.get_session()
             try:
-                from database.models import UserModel
-                user_model = session.query(UserModel).filter(UserModel.user_id == user_id).first()
+                # 查询条件改为 id 字段
+                user_model = session.query(UserModel).filter(UserModel.id == user_id).first()
                 if user_model:
-                    user_model.last_login = int(time.time())  # 使用时间戳
+                    # 使用时间戳
+                    user_model.last_login_at = int(time.time())
                     session.commit()
                     return True
                 return False
@@ -215,39 +234,54 @@ class UserDAO:
             finally:
                 session.close()
         except Exception as e:
+            from utils.logger import setup_logger
+            logger = setup_logger('user_dao')
             logger.error(f"更新登录时间失败: {str(e)}")
             return False
 
     async def update_user(self, user_id, username=None, email=None, password_hash=None, is_anonymous=None):
-        """更新用户信息，支持更新匿名状态"""
+        """更新用户信息"""
         try:
             session = self.db.get_session()
             try:
-                from database.models import UserModel
-                user_model = session.query(UserModel).filter(UserModel.user_id == user_id).first()
+                # 查询条件改为 id 字段
+                user_model = session.query(UserModel).filter(UserModel.id == user_id).first()
                 if user_model:
                     # 更新用户信息
                     if username is not None:
                         user_model.username = username
+                    
                     if email is not None:
                         user_model.email = email
+                        # 如果是邮箱用户，同时更新 auth_id
+                        if user_model.auth_type == 'email':
+                            user_model.auth_id = email
+                    
                     if password_hash is not None:
                         user_model.password_hash = password_hash
+                    
                     if is_anonymous is not None:
-                        user_model.is_anonymous = is_anonymous
+                        # 更新认证类型
+                        user_model.auth_type = 'anonymous' if is_anonymous else 'email'
+                        # 如果从匿名转为非匿名，需要设置 auth_id 为邮箱
+                        if not is_anonymous and user_model.email:
+                            user_model.auth_id = user_model.email
+                    
+                    # 更新时间戳
+                    user_model.updated_at = int(time.time())
                     
                     # 提交更改
                     session.commit()
                     
                     # 返回更新后的用户对象
                     return User(
-                        user_id=user_model.user_id,
+                        user_id=user_model.id,
                         username=user_model.username,
                         email=user_model.email,
                         password_hash=user_model.password_hash,
                         created_at=user_model.created_at,
-                        last_login=user_model.last_login,
-                        is_anonymous=user_model.is_anonymous
+                        last_login=user_model.last_login_at,
+                        is_anonymous=(user_model.auth_type == 'anonymous')
                     )
                 return None
             except Exception as e:
