@@ -1,78 +1,17 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, Table, Enum, DateTime, func, text
+from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, Table, Enum, DateTime, func, text, Float
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
 import time
 import uuid
 from datetime import datetime
 
-Base = declarative_base()
+# Import Base from the base module instead of defining it here
+from .base import Base
 
-# 用户表定义
-class UserModel(Base):
-    __tablename__ = 'users'
-    
-    # 主键使用UUID
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment='用户唯一标识')
-    
-    # 身份验证系统 - 添加name参数
-    auth_type = Column(Enum('email', 'anonymous', 'mobile', 'google', 'apple', name='auth_type_enum'), 
-                       nullable=False, default='anonymous', comment='认证类型')
-    auth_id = Column(String(255), comment='第三方ID/手机号/匿名UUID')
-    
-    # 认证补充字段 - SQLAlchemy不支持生成列，需要在应用层处理
-    mobile = Column(String(20), unique=True, nullable=True, comment='手机号（仅mobile类型有效）')
-    email = Column(String(100), unique=True, nullable=True, comment='邮箱（仅email类型有效）')
-    
-    # 安全信息
-    password_hash = Column(String(255), nullable=True, comment='密码哈希（可选）')
-    is_mobile_verified = Column(Boolean, default=False)
-    is_email_verified = Column(Boolean, default=False)
-    
-    # 基础信息
-    username = Column(String(50), comment='可编辑昵称')
-    avatar_url = Column(String(255), nullable=True)
-    
-    # 时间信息
-    created_at = Column(Integer, default=lambda: int(time.time()), comment='创建时间戳')
-    updated_at = Column(Integer, default=lambda: int(time.time()), onupdate=lambda: int(time.time()), comment='更新时间戳')
-    last_login_at = Column(Integer, nullable=True, comment='最后登录时间戳')
-    
-    # 状态管理 - 添加name参数
-    account_status = Column(Enum('active', 'locked', 'deleted', name='account_status_enum'), default='active')
-    is_deleted = Column(Boolean, default=False, comment='软删除标记')
-    
-    # 关系
-    external_auths = relationship("UserExternalAuth", back_populates="user", cascade="all, delete-orphan")
-    
-    # 索引在SQLAlchemy中通常在表创建时定义，这里只是注释说明
-    # __table_args__ = (
-    #     UniqueConstraint('auth_type', 'auth_id', name='uniq_auth'),
-    #     Index('idx_mobile', 'mobile'),
-    #     Index('idx_global_id', 'auth_id'),
-    # )
-
-# 第三方登录详情表
-class UserExternalAuth(Base):
-    __tablename__ = 'user_external_auths'
-    
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment='主键')
-    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    # 添加name参数
-    provider = Column(Enum('google', 'apple', name='provider_enum'), nullable=False)
-    provider_user_id = Column(String(255), nullable=False)
-    access_token = Column(String(500), nullable=False)
-    refresh_token = Column(String(500), nullable=True)
-    expires_at = Column(Integer, nullable=True, comment='令牌过期时间戳')
-    created_at = Column(Integer, default=lambda: int(time.time()), comment='创建时间戳')
-    updated_at = Column(Integer, default=lambda: int(time.time()), onupdate=lambda: int(time.time()), comment='更新时间戳')
-    
-    # 关系
-    user = relationship("UserModel", back_populates="external_auths")
-    
-    # 索引
-    # __table_args__ = (
-    #     UniqueConstraint('provider', 'provider_user_id', name='uniq_provider_user'),
-    # )
+# 导入移动到单独文件的类
+from .agent_model_config import AgentModelConfig
+from .user_models import UserModel, UserExternalAuth
+from .agent_prompt import AgentPrompt
+from .agent import Agent
 
 # 搜索结果表定义
 class SearchResultModel(Base):
@@ -169,23 +108,5 @@ class NewsSummaryTrigger(Base):
     news_items = relationship("News", secondary=news_trigger_mapping, back_populates="triggers")
     agent = relationship("Agent")
 
-# 新增 Agent 模型
-class Agent(Base):
-    """Agent 模型，用于存储智能代理配置"""
-    __tablename__ = "agents"
-    
-    # 使用key_id作为主键，不再使用自增id
-    key_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
-    name = Column(String(100), nullable=False)  # 默认名称
-    name_en = Column(String(100), nullable=True)  # 英文名称
-    name_zh = Column(String(100), nullable=True)  # 中文名称
-    description = Column(Text, nullable=True)  # Agent的详细描述
-    type = Column(String(50), nullable=False, default="assistant")  # agent类型，如 'assistant', 'search', 'expert' 等
-    prompt_en = Column(Text, nullable=False)  # 英文提示词
-    prompt_zh = Column(Text, nullable=True)  # 中文提示词
-    model = Column(String(100), nullable=False)  # 使用的模型，如 'gpt-4', 'deepseek' 等
-    tools = Column(Text, nullable=True)  # 存储工具配置，可以是JSON格式
-    create_date = Column(Integer, default=lambda: int(time.time()))
-    update_date = Column(Integer, default=lambda: int(time.time()), onupdate=lambda: int(time.time()))
-    trigger_date = Column(Integer, nullable=True)  # 最后一次触发时间
+# Agent类已移至单独文件
 

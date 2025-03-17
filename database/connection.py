@@ -1,37 +1,69 @@
-from sqlalchemy import create_engine, MetaData
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
-from utils.logger import setup_logger
-
-logger = setup_logger('database')
-
-Base = declarative_base()
+from sqlalchemy.ext.declarative import declarative_base
+from .base import Base
+from .user_models import UserModel
+from .agent import Agent
+import uuid
 
 class Database:
-    def __init__(self, db_url):
-        self.engine = create_engine(db_url)
-        self.metadata = MetaData()
-        self.SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=self.engine))
-        
-        logger.info(f"数据库引擎初始化: {db_url.split('@')[1] if '@' in db_url else db_url}")
-    
-    def init_database(self):
-        """初始化数据库表"""
-        try:
-            from database.models import Base
-            Base.metadata.create_all(self.engine)
-            logger.info("数据库表创建成功")
-            return True
-        except Exception as e:
-            logger.error(f"创建数据库表失败: {str(e)}")
-            return False
+    def __init__(self, database_url):
+        self.engine = create_engine(database_url)
+        self.session_factory = sessionmaker(bind=self.engine)
+        self.Session = scoped_session(self.session_factory)
     
     def get_session(self):
-        """获取数据库会话"""
-        return self.SessionLocal()
+        return self.Session()
+    
+    def init_database(self):
+        """初始化数据库"""
+        # 创建所有表
+        Base.metadata.create_all(self.engine)
+        
+        # 获取会话
+        session = self.get_session()
+        
+        try:
+            # 检查是否已有管理员用户
+            admin_user = session.query(UserModel).filter_by(
+                auth_type='email', 
+                email='admin@example.com'
+            ).first()
+            
+            # 如果没有管理员用户，创建一个
+            if not admin_user:
+                admin_user = UserModel(
+                    id=str(uuid.uuid4()),
+                    auth_type='email',
+                    email='admin@example.com',
+                    username='系统管理员',
+                    is_email_verified=True,
+                    password_hash='hashed_password'  # 实际应用中应该使用加密后的密码
+                )
+                session.add(admin_user)
+                session.flush()
+                
+                # 初始化默认Agent
+                Agent.init_default_agents(session, admin_user.id)
+                
+                session.commit()
+                print("已创建管理员用户和默认Agent")
+            else:
+                # 检查是否已有默认Agent
+                agents = session.query(Agent).filter_by(user_id=admin_user.id).all()
+                if not agents:
+                    # 初始化默认Agent
+                    Agent.init_default_agents(session, admin_user.id)
+                    session.commit()
+                    print("已创建默认Agent")
+                else:
+                    print("数据库已初始化")
+        
+        except Exception as e:
+            session.rollback()
+            print(f"初始化数据库时出错: {e}")
+        finally:
+            session.close()
     
     def close(self):
-        """关闭数据库连接"""
-        self.SessionLocal.remove()
-        self.engine.dispose()
-        logger.info("数据库连接已关闭")
+        self.Session.remove()
