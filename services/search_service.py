@@ -1,5 +1,5 @@
 from langchain.schema import HumanMessage, SystemMessage
-from config.prompts.search_prompts import searcher_system_prompt_cn, summary_prompt_cn, searcher_system_prompt_en, summary_prompt_en
+from config.prompts.search_prompts import SEARCH_PROMPT_ZH, SEARCH_PROMPT_EN
 from utils.logger import setup_logger
 from models.search_result import SearchResult
 from services.deepseek_service import DeepSeekService
@@ -102,16 +102,30 @@ class SearchService:
                 search_agent = search_agents[0]
                 logger.info(f"使用搜索Agent: {search_agent.name}, key_id: {search_agent.key_id}")
                 
-                # 根据语言选择提示词
-                system_prompt = search_agent.prompt_en if lang.startswith('en') else search_agent.prompt_zh
+                # 获取Agent的提示词
+                agent_prompt = self.agent_dao.get_agent_prompt(search_agent.key_id)
+                
+                if agent_prompt:
+                    # 根据语言选择提示词
+                    system_prompt = agent_prompt.content_en if lang.startswith('en') else agent_prompt.content_zh
+                    
+                    # 更新Agent的触发时间
+                    self.agent_dao.update_agent_trigger_date(search_agent.key_id)
+                else:
+                    logger.warning(f"未找到Agent {search_agent.key_id} 的提示词，使用默认提示词")
+                    # 使用默认提示词
+                    from config.prompts.search_prompts import SEARCH_PROMPT_EN, SEARCH_PROMPT_ZH
+                    system_prompt = SEARCH_PROMPT_EN if lang.startswith('en') else SEARCH_PROMPT_ZH
             else:
                 logger.warning("未找到搜索Agent，使用默认提示词")
                 # 使用默认提示词
-                system_prompt = summary_prompt_en if lang.startswith('en') else summary_prompt_cn
+                from config.prompts.search_prompts import SEARCH_PROMPT_EN, SEARCH_PROMPT_ZH
+                system_prompt = SEARCH_PROMPT_EN if lang.startswith('en') else SEARCH_PROMPT_ZH
         except Exception as e:
             logger.error(f"获取搜索Agent失败: {str(e)}")
             # 使用默认提示词
-            system_prompt = summary_prompt_en if lang.startswith('en') else summary_prompt_cn
+            from config.prompts.search_prompts import SEARCH_PROMPT_EN, SEARCH_PROMPT_ZH
+            system_prompt = SEARCH_PROMPT_EN if lang.startswith('en') else SEARCH_PROMPT_ZH
         
         # 创建消息列表，直接包含搜索结果
         messages = [

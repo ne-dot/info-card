@@ -23,7 +23,7 @@ searcher_system_prompt_cn = """
 你的回答将被封装为SearchResult对象返回给用户，请确保内容质量和准确性。
 """
 
-summary_prompt_cn = """你是一个专业的搜索结果分析助手。
+SEARCH_PROMPT_ZH = """你是一个专业的搜索结果分析助手。
 你的任务是提供一个结构化的回答，包含以下两个主要部分：
 
 第一部分 - AI回答：
@@ -72,7 +72,7 @@ Your answer will be encapsulated as a SearchResult object returned to the user, 
 """
 
 # 添加英文版本的总结提示词
-summary_prompt_en = """You are a professional search results analysis assistant.
+SEARCH_PROMPT_EN = """You are a professional search results analysis assistant.
 Your task is to provide a structured response with two main sections:
 
 Section 1 - AI Answer:

@@ -40,24 +40,24 @@ class AgentModelConfig(Base):
         )
         
         # 创建 gpt-4-turbo 模型配置
-        gpt4_config = {
-            "temperature": 0.8,
-            "max_tokens": 4000,
-            "top_p": 1.0
-        }
+        # gpt4_config = {
+        #     "temperature": 0.8,
+        #     "max_tokens": 4000,
+        #     "top_p": 1.0
+        # }
         
-        gpt4_model = cls(
-            id=str(uuid.uuid4()),
-            agent_id=agent_id,
-            model_name="gpt-4-turbo",
-            weight=0.3,
-            priority=1,
-            is_enabled=True,
-            config=json.dumps(gpt4_config)
-        )
+        # gpt4_model = cls(
+        #     id=str(uuid.uuid4()),
+        #     agent_id=agent_id,
+        #     model_name="gpt-4-turbo",
+        #     weight=0.3,
+        #     priority=1,
+        #     is_enabled=True,
+        #     config=json.dumps(gpt4_config)
+        # )
         
         # 添加到会话
         session.add(deepseek_model)
-        session.add(gpt4_model)
+        # session.add(gpt4_model)
         
-        return [deepseek_model, gpt4_model]
+        return [deepseek_model]

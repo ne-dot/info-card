@@ -12,7 +12,7 @@ from dao.agent_dao import AgentDAO
 from utils.logger import setup_logger
 from utils.i18n_utils import get_text
 from langchain.schema import HumanMessage, SystemMessage
-from config.prompts.news_prompts import get_news_summary_prompt, get_news_summary_prompt_en
+from config.prompts.news_prompts import get_news_summary_prompt, get_news_SEARCH_PROMPT_EN
 
 logger = setup_logger('news_service')
 

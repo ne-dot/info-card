@@ -32,7 +32,7 @@ def get_news_summary_prompt(base_prompt, news_text=None):
 
 {base_prompt}"""
 
-def get_news_summary_prompt_en(base_prompt, news_text=None):
+def get_news_SEARCH_PROMPT_EN(base_prompt, news_text=None):
     """Get the prompt for tech news summary in English"""
     if news_text:
         return f"""You are a seasoned tech news editor skilled at analyzing and summarizing technology trends.

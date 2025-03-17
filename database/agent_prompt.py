@@ -28,7 +28,7 @@ class AgentPrompt(Base):
     def init_default_prompts(cls, session, agent_id, creator_id, prompt_type="search"):
         """初始化默认提示词"""
         from config.prompts.news_prompts import BASE_PROMPT_ZH, BASE_PROMPT_EN
-        from config.prompts.search_prompts import summary_prompt_cn, summary_prompt_en
+        from config.prompts.search_prompts import SEARCH_PROMPT_ZH, SEARCH_PROMPT_EN
         
         prompts = []
         
@@ -38,8 +38,8 @@ class AgentPrompt(Base):
                 id=str(uuid.uuid4()),
                 agent_id=agent_id,
                 version="1.0.0",
-                content_zh=summary_prompt_cn,
-                content_en=summary_prompt_en,
+                content_zh=SEARCH_PROMPT_ZH,
+                content_en=SEARCH_PROMPT_EN,
                 variables=json.dumps({"query": "", "search_results": []}),
                 is_production=True,
                 creator_id=creator_id

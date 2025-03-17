@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import List, Optional
 from services.search_service import SearchService
 from tools.google_search import search_google_by_text  
@@ -7,6 +7,7 @@ from utils.response_utils import success_response, error_response, ErrorCode
 from utils.logger import setup_logger
 from utils.jwt_utils import decode_token  # 导入解析token的函数
 from models.user import User
+import re
 
 # 初始化日志记录器
 logger = setup_logger('search_controller')
@@ -17,6 +18,21 @@ search_service = None
 
 class SearchQuery(BaseModel):
     query: str
+    
+    @validator('query')
+    def validate_query(cls, v):
+        # 检查是否为GraphQL查询
+        if re.search(r'(query\s+\w+|__schema|__type|__typename)', v, re.IGNORECASE):
+            raise ValueError("不支持的查询类型")
+        
+        # 检查查询长度
+        if len(v.strip()) < 2:
+            raise ValueError("查询内容太短")
+        
+        if len(v) > 500:
+            raise ValueError("查询内容过长")
+            
+        return v
 
 class SearchResponse(BaseModel):
     gpt_summary: dict
