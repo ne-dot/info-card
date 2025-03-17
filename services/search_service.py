@@ -4,7 +4,6 @@ from utils.logger import setup_logger
 from models.search_result import SearchResult
 from services.deepseek_service import DeepSeekService
 from tools.google_search import search_google_by_text, search_google_by_image
-from dao.search_dao import SearchDAO
 from dao.agent_dao import AgentDAO
 from dao.agent_invocation_dao import AgentInvocationDAO
 from dao.ai_summary_dao import AISummaryDAO
@@ -19,7 +18,6 @@ from langchain.tools import StructuredTool
 class SearchService:
     def __init__(self, db):
         self.chat = DeepSeekService()
-        self.search_dao = SearchDAO(db)
         self.agent_dao = AgentDAO(db)
         self.invocation_dao = AgentInvocationDAO(db)
         self.summary_dao = AISummaryDAO(db)

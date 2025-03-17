@@ -10,7 +10,6 @@ from services.deepseek_service import DeepSeekService
 from controllers import search_controller, user_controller, news_controller, agent_controller
 from database.connection import Database
 from dao.user_dao import UserDAO
-from dao.search_dao import SearchDAO
 from fastapi.middleware.cors import CORSMiddleware
 from middleware.auth_middleware import auth_middleware
 from utils.logger import setup_logger
@@ -30,10 +29,6 @@ async def lifespan(app):
     # 初始化数据库
     db = Database(DATABASE_URL)
     db.init_database()
-    
-    # 初始化DAO
-    # user_dao = UserDAO(db)
-    # search_dao = SearchDAO(db)
     
     # 初始化服务
     search_service = SearchService(db)

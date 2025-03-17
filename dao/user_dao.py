@@ -1,4 +1,4 @@
-from database.models import UserModel  
+from database.user_models import UserModel  
 from models.user import User
 from sqlalchemy import select
 import uuid

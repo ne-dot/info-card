@@ -4,52 +4,10 @@ import time
 import uuid
 from datetime import datetime
 
-# Import Base from the base module instead of defining it here
+# Import Base from the base module
 from .base import Base
 
-# 导入移动到单独文件的类
-from .agent_model_config import AgentModelConfig
-from .user_models import UserModel, UserExternalAuth
-from .agent_prompt import AgentPrompt
-from .agent import Agent
-
-# 搜索结果表定义
-class SearchResultModel(Base):
-    __tablename__ = 'search_results'
-    
-    id = Column(Integer, primary_key=True)
-    key_id = Column(String(36), unique=True, nullable=False)
-    title = Column(String(255), nullable=True)
-    content = Column(Text, nullable=True)
-    snippet = Column(Text, nullable=True)
-    link = Column(String(500), nullable=True)
-    source = Column(String(50), nullable=True)
-    type = Column(String(20), default='text')
-    thumbnail_link = Column(String(500), nullable=True)
-    context_link = Column(String(500), nullable=True)
-    date = Column(Integer, default=lambda: int(time.time()))  # 使用时间戳
-    
-    # 外键关联到查询
-    query_id = Column(Integer, ForeignKey('search_queries.id'))
-    
-    # 添加用户ID和匿名ID字段
-    user_id = Column(String(36), ForeignKey('users.id'), nullable=True)  # 非匿名用户ID
-    anonymous_id = Column(String(36), nullable=True)  # 匿名用户ID
-
-# 搜索查询表定义
-class SearchQueryModel(Base):
-    __tablename__ = 'search_queries'
-    
-    id = Column(Integer, primary_key=True)
-    query_text = Column(Text, nullable=False)  # 修改为Text类型，避免长度限制
-    date = Column(Integer, default=lambda: int(time.time()))  # 使用时间戳
-    
-    # 修改用户关联字段
-    user_id = Column(String(36), ForeignKey('users.id'), nullable=True)  # 非匿名用户ID
-    anonymous_id = Column(String(36), nullable=True)  # 匿名用户ID
-
-
-# 首先定义映射表
+# Define mapping table first
 news_trigger_mapping = Table(
     "news_trigger_mapping",
     Base.metadata,
@@ -58,7 +16,7 @@ news_trigger_mapping = Table(
     Column("trigger_id", String(36), ForeignKey("news_summary_triggers.key_id"), nullable=False)
 )
 
-# 然后定义 News 类
+# News class definition
 class News(Base):
     """新闻数据表模型"""
     __tablename__ = "news"
@@ -108,5 +66,10 @@ class NewsSummaryTrigger(Base):
     news_items = relationship("News", secondary=news_trigger_mapping, back_populates="triggers")
     agent = relationship("Agent")
 
-# Agent类已移至单独文件
+# Import these at the bottom to avoid circular imports
+# These imports are used for reference only and should be imported in __init__.py
+# from .agent_model_config import AgentModelConfig
+# from .user_models import UserModel, UserExternalAuth
+# from .agent_prompt import AgentPrompt
+# from .agent import Agent
 

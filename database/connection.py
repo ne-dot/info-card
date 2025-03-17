@@ -4,6 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from .base import Base
 from .user_models import UserModel
 from .agent import Agent
+from .rss_feed import RSSFeed
 import uuid
 
 class Database:
@@ -29,6 +30,9 @@ class Database:
                 auth_type='email', 
                 email='admin@example.com'
             ).first()
+
+            # 初始化默认RSS订阅源
+            RSSFeed.init_default_feeds(session)
             
             # 如果没有管理员用户，创建一个
             if not admin_user:
@@ -58,6 +62,8 @@ class Database:
                     print("已创建默认Agent")
                 else:
                     print("数据库已初始化")
+            
+            
         
         except Exception as e:
             session.rollback()
