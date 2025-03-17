@@ -6,6 +6,8 @@ import json
 from .base import Base
 from .agent_model_config import AgentModelConfig
 from .agent_prompt import AgentPrompt
+# 添加 Subscription 的导入
+from .subscription import Subscription
 
 class Agent(Base):
     """Agent 模型，用于存储智能代理配置"""
@@ -48,9 +50,45 @@ class Agent(Base):
     # 关系
     model_configs = relationship("AgentModelConfig", back_populates="agent", cascade="all, delete-orphan")
     prompts = relationship("AgentPrompt", back_populates="agent", cascade="all, delete-orphan")
+    # 使用字符串形式的类名，延迟加载关系
+    subscriptions = relationship("Subscription", back_populates="agent", cascade="all, delete-orphan", lazy="dynamic")
+    invocations = relationship("AgentInvocation", back_populates="agent")
     
     # 与用户的关系
     creator = relationship("UserModel")
+    
+    def requires_subscription(self):
+        """判断该Agent是否需要订阅
+        
+        Returns:
+            bool: 如果是search类型返回False，其他类型返回True
+        """
+        return self.type != "search"
+    
+    def check_user_access(self, user_id):
+        """检查用户是否有权限访问该Agent
+        
+        Args:
+            user_id: 用户ID
+            
+        Returns:
+            bool: 用户是否有权限访问
+        """
+        # search类型的agent不需要订阅，直接返回True
+        if self.type == "search":
+            return True
+            
+        # 创建者可以访问自己创建的agent
+        if self.user_id == user_id:
+            return True
+            
+        # 检查用户是否有有效订阅
+        # 由于使用了lazy="dynamic"，需要调用all()方法获取所有订阅
+        for subscription in self.subscriptions.all():
+            if subscription.user_id == user_id and subscription.is_active():
+                return True
+                
+        return False
     
     @classmethod
     def init_default_agents(cls, session, creator_id):

@@ -1,61 +1,37 @@
-from sqlalchemy import Column, String, Integer, Date, Enum, Float, Boolean, ForeignKey, DateTime, func
+from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, Float
 from sqlalchemy.orm import relationship
 from .base import Base
 import uuid
-from datetime import datetime
+import time
 
 class Subscription(Base):
-    """用户订阅模型，管理用户对Agent的订阅关系"""
+    """订阅模型，用于存储用户对Agent的订阅信息"""
     __tablename__ = "subscriptions"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
-    user_id = Column(String(36), ForeignKey('users.id'), nullable=False)
-    agent_id = Column(String(36), ForeignKey('agents.key_id'), nullable=False)
+    user_id = Column(String(36), ForeignKey('users.id'), nullable=False, comment='用户ID')
+    agent_id = Column(String(36), ForeignKey('agents.key_id'), nullable=False, comment='Agent ID')
     
-    # 订阅时间范围
-    start_date = Column(Date, nullable=False)
-    end_date = Column(Date, nullable=False)
+    # 订阅信息
+    start_date = Column(Integer, nullable=False, comment='订阅开始时间')
+    end_date = Column(Integer, nullable=True, comment='订阅结束时间')
+    price = Column(Float, default=0.0, comment='订阅价格')
+    status = Column(String(20), default='active', comment='订阅状态')
     
-    # 支付和状态信息
-    payment_status = Column(Enum('pending', 'paid', 'failed', 'refunded', name='payment_status_enum'), 
-                           default='pending')
-    status = Column(Enum('active', 'expired', 'cancelled', name='subscription_status_enum'), 
-                   default='active')
-    
-    # 价格和续订信息
-    price = Column(Float, nullable=False, comment='订阅时价格快照')
-    renewal_count = Column(Integer, default=0, comment='续订次数')
-    
-    # 时间戳和删除标记
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    is_deleted = Column(Boolean, default=False)
+    # 审计字段
+    create_date = Column(Integer, default=lambda: int(time.time()), comment='创建时间')
+    update_date = Column(Integer, default=lambda: int(time.time()), 
+                         onupdate=lambda: int(time.time()), comment='更新时间')
+    is_deleted = Column(Boolean, default=False, comment='软删除标记')
     
     # 关系
-    user = relationship("UserModel", back_populates="subscriptions")
     agent = relationship("Agent", back_populates="subscriptions")
+    user = relationship("UserModel", back_populates="subscriptions")
     
-    def __repr__(self):
-        return f"<Subscription(id='{self.id}', user_id='{self.user_id}', agent_id='{self.agent_id}', status='{self.status}')>"
-    
-    @property
     def is_active(self):
-        """检查订阅是否处于活跃状态"""
-        today = datetime.now().date()
-        return (not self.is_deleted and 
-                self.status == 'active' and 
-                self.payment_status == 'paid' and
-                self.start_date <= today <= self.end_date)
-    
-    @classmethod
-    def get_active_subscriptions(cls, session, user_id):
-        """获取用户的所有活跃订阅"""
-        today = datetime.now().date()
-        return session.query(cls).filter(
-            cls.user_id == user_id,
-            cls.status == 'active',
-            cls.payment_status == 'paid',
-            cls.start_date <= today,
-            cls.end_date >= today,
-            cls.is_deleted == False
-        ).all()
+        """检查订阅是否有效"""
+        current_time = int(time.time())
+        return (self.status == 'active' and 
+                self.start_date <= current_time and 
+                (self.end_date is None or self.end_date >= current_time) and
+                not self.is_deleted)
