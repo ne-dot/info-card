@@ -113,13 +113,7 @@ class UserService:
             logger.info(f"输入密码: {password}")
             logger.info(f"数据库密码哈希: {user.password_hash}")
             
-            # 临时解决方案：直接比较密码
-            if password == "password123":  # 假设这是正确的密码
-                password_valid = True
-                logger.info("使用临时解决方案：直接比较密码")
-            else:
-                # 验证密码 - 直接使用原始密码与数据库中的哈希密码比较
-                password_valid = verify_password(password, user.password_hash)
+            password_valid = verify_password(password, user.password_hash)
             
             logger.info(f"密码验证结果: {'成功' if password_valid else '失败'}")
             

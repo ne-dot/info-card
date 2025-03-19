@@ -24,7 +24,7 @@ class UserDAO:
                     auth_id=email,
                     email=email,
                     username=username,
-                    password_hash=hash_password(password),
+                    password_hash=password,
                     created_at=now,
                     updated_at=now,
                     last_login_at=now,
