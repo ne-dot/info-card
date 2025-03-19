@@ -6,6 +6,7 @@ from utils.logger import setup_logger
 from utils.response_utils import success_response, error_response, ErrorCode
 from utils.i18n_utils import get_text
 from fastapi import Request
+from dependencies.auth import get_current_user  # 导入依赖项
 
 router = APIRouter()
 logger = setup_logger('user_controller')
@@ -14,6 +15,9 @@ user_service = None
 def init_controller(service: UserService):
     global user_service
     user_service = service
+    # 初始化认证依赖
+    from dependencies.auth import init_dependency
+    init_dependency(service)
 
 @router.post("/login", response_model=TokenResponse)
 async def login(login_data: UserLogin, request: Request):
@@ -48,28 +52,6 @@ async def refresh_token(refresh_token: str = Header(...)):
     except Exception as e:
         logger.error(f"刷新令牌失败: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-async def get_current_user(authorization: Optional[str] = Header(None)):
-    """获取当前用户，用于依赖注入"""
-    if not authorization:
-        raise HTTPException(status_code=401, detail="未提供认证信息")
-    
-    # More robust splitting of the authorization header
-    parts = authorization.split()
-    if len(parts) < 2:
-        raise HTTPException(status_code=401, detail="认证格式无效")
-    
-    scheme = parts[0]
-    token = ' '.join(parts[1:])  # Join all remaining parts as the token
-    
-    if scheme.lower() != "bearer":
-        raise HTTPException(status_code=401, detail="认证方案无效")
-    
-    user, error = await user_service.get_current_user(token)
-    if error:
-        raise HTTPException(status_code=401, detail=error)
-    
-    return user
 
 @router.get("/me")
 async def get_user_info(request: Request, current_user: UserResponse = Depends(get_current_user)):

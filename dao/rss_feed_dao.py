@@ -1,5 +1,6 @@
 from database.rss_feed import RSSFeed
 from sqlalchemy.exc import SQLAlchemyError
+from typing import Optional
 from utils.logger import setup_logger
 
 logger = setup_logger('rss_feed_dao')
@@ -192,3 +193,31 @@ class RSSFeedDao:
         except SQLAlchemyError as e:
             logger.error(f"删除RSS源失败: {str(e)}")
             return False
+
+
+class RSSFeedDAO:
+    def __init__(self, db):
+        self.db = db
+    
+    def get_feed_by_category_and_name(self, category: str, name: str) -> Optional[RSSFeed]:
+        """根据分类和名称获取RSS Feed
+        
+        Args:
+            category: Feed分类
+            name: Feed名称
+            
+        Returns:
+            Optional[RSSFeed]: 找到的Feed，如果不存在则返回None
+        """
+        session = self.db.get_session()
+        try:
+            feed = session.query(RSSFeed).filter(
+                RSSFeed.category == category,
+                RSSFeed.name == name
+            ).first()
+            return feed
+        except Exception as e:
+            logger.error(f"获取Feed失败: {str(e)}")
+            return None
+        finally:
+            session.close()

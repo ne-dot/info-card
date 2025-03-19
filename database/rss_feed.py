@@ -1,111 +1,45 @@
-from sqlalchemy import Column, String, Text, Boolean, ForeignKey, Enum, Integer, Float, JSON, DateTime
+from sqlalchemy import Column, String, Text, DateTime, Boolean, Enum, Table, ForeignKey
 from sqlalchemy.orm import relationship
-import time
 import uuid
-from .base import Base
+import enum
 from datetime import datetime
+from .base import Base
+from .rss_entry import entry_feed_association  # 导入中间表
 
+
+# 修改RSSFeed类中的关系定义
 class RSSFeed(Base):
-    """RSS订阅源模型，用于存储RSS源信息"""
+    """RSS Feed模型，用于存储RSS源信息"""
     __tablename__ = "rss_feeds"
     
     # 主键
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False, comment='UUIDv7')
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     
     # 基本信息
-    feed_url = Column(String(512), nullable=False, unique=True, comment='RSS源地址')
-    title = Column(String(255), nullable=False, comment='源标题')
-    category = Column(Enum('news', 'sports', 'football', 'tech', 'custom', 'business', name='category_enum'), default='news')
-    language = Column(String(2), default='zh', comment='ISO语言代码')
+    name = Column(String(255), nullable=False, comment='Feed名称')
+    url = Column(String(1024), nullable=False, comment='Feed URL')
+    description = Column(Text, nullable=True, comment='Feed描述')
+    category = Column(String(50), nullable=True, comment='Feed分类')
     
-    # 缓存控制
-    etag = Column(String(128), nullable=True, comment='HTTP缓存标识')
-    last_modified = Column(DateTime(6), nullable=True, comment='最后更新时间戳')
-    
-    # 健康状态
-    health_status = Column(JSON, nullable=True, comment='健康状态信息')
-    
-    # 审计字段
+    # 状态信息
+    is_active = Column(Boolean, default=True, comment='是否激活')
+    last_fetch_at = Column(DateTime(6), nullable=True, comment='最后一次获取时间')
     created_at = Column(DateTime(6), default=datetime.now, comment='创建时间')
-    updated_at = Column(DateTime(6), default=datetime.now, onupdate=datetime.now, comment='更新时间')
     
-    # 关系
-    entries = relationship("RSSEntry", back_populates="feed", cascade="all, delete-orphan")
-    agent_feeds = relationship("AgentRSSFeed", back_populates="feed", cascade="all, delete-orphan")
+    # 关系 - 修改为使用中间表的多对多关系
+    entries = relationship("RSSEntry", secondary=entry_feed_association, back_populates="feeds")
     
-    def __init__(self, feed_url, title, category='news', language='zh', etag=None, last_modified=None):
-        self.id = str(uuid.uuid4())
-        self.feed_url = feed_url
-        self.title = title
-        self.category = category
-        self.language = language
-        self.etag = etag
-        self.last_modified = last_modified
-        self.health_status = {
-            "failure_count": 0,
-            "last_success": None,
-            "avg_interval": 3600
-        }
+    # 使用AgentRSSFeed作为关联
+    feed = relationship("AgentRSSFeed", back_populates="feed")
     
-    def update_health_status(self, success=True):
-        """更新RSS源的健康状态
-        
-        Args:
-            success: 是否成功获取RSS源
-        """
-        if not self.health_status:
-            self.health_status = {
-                "failure_count": 0,
-                "last_success": None,
-                "avg_interval": 3600
-            }
-        
-        if success:
-            # 成功获取RSS源
-            now = datetime.now().isoformat()
-            last_success = self.health_status.get("last_success")
-            
-            # 计算平均间隔时间
-            if last_success:
-                last_success_time = datetime.fromisoformat(last_success)
-                interval = (datetime.now() - last_success_time).total_seconds()
-                avg_interval = self.health_status.get("avg_interval", 3600)
-                # 更新平均间隔 (加权平均)
-                self.health_status["avg_interval"] = (avg_interval * 0.7) + (interval * 0.3)
-            
-            self.health_status["last_success"] = now
-            self.health_status["failure_count"] = 0
-        else:
-            # 获取失败
-            self.health_status["failure_count"] = self.health_status.get("failure_count", 0) + 1
+    # 移除直接的多对多关系
+    # agents = relationship("Agent", secondary=agent_feed_association, back_populates="feeds")
     
-    def to_dict(self):
-        """将模型转换为字典"""
-        return {
-            "id": self.id,
-            "feed_url": self.feed_url,
-            "title": self.title,
-            "category": self.category,
-            "language": self.language,
-            "etag": self.etag,
-            "last_modified": self.last_modified.isoformat() if self.last_modified else None,
-            "health_status": self.health_status,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
-        }
-    
-    # 在 RSSFeed 类中添加初始化方法
     
     @classmethod
     def init_default_feeds(cls, session):
-        """初始化默认的RSS订阅源
-        
-        Args:
-            session: 数据库会话
-            
-        Returns:
-            list: 创建的RSS订阅源列表
-        """
+        """初始化默认的RSS Feed数据"""
+        # 默认Feed数据
         default_feeds = [
             {
                 "feed_url": "https://www.wired.com/feed/",
@@ -145,26 +79,39 @@ class RSSFeed(Base):
             }
         ]
         
-        created_feeds = []
-        
+        # 检查并添加默认Feed
         for feed_data in default_feeds:
             # 检查是否已存在
-            existing = session.query(cls).filter(cls.feed_url == feed_data["feed_url"]).first()
-            if existing:
-                created_feeds.append(existing)
-                continue
+            existing_feed = session.query(cls).filter(
+                cls.name == feed_data["title"],
+                cls.url == feed_data["feed_url"]
+            ).first()
+            
+            if not existing_feed:
+                # 创建新Feed
+                category_value = feed_data["category"]
+                # category_enum = None
                 
-            # 创建新的RSS源
-            feed = cls(
-                feed_url=feed_data["feed_url"],
-                title=feed_data["title"],
-                category=feed_data["category"],
-                language=feed_data["language"]
-            )
-            session.add(feed)
-            created_feeds.append(feed)
+                # # 将字符串类别转换为枚举值
+                # if category_value == "tech":
+                #     category_enum = FeedCategory.TECH
+                # elif category_value == "football":
+                #     category_enum = FeedCategory.FOOTBALL
+                # elif category_value == "business":
+                #     category_enum = FeedCategory.BUSINESS
+                # else:
+                #     category_enum = FeedCategory.OTHER
+                
+                # 直接使用枚举对象，而不是枚举名称
+                new_feed = cls(
+                    id=str(uuid.uuid4()),
+                    name=feed_data["title"],
+                    url=feed_data["feed_url"],
+                    description=f"{feed_data['title']} RSS Feed",
+                    category=category_value  # 使用枚举对象
+                )
+                session.add(new_feed)
         
         # 提交事务
         session.commit()
-        
-        return created_feeds
+    

@@ -3,7 +3,6 @@ from sqlalchemy.orm import relationship
 import time
 import uuid
 from .models import Base
-from .subscription import Subscription 
 
 # 用户表定义
 class UserModel(Base):
@@ -39,11 +38,8 @@ class UserModel(Base):
     account_status = Column(Enum('active', 'locked', 'deleted', name='account_status_enum'), default='active')
     is_deleted = Column(Boolean, default=False, comment='软删除标记')
     
-    subscriptions = relationship("Subscription", back_populates="user")
     # 关系
     external_auths = relationship("UserExternalAuth", back_populates="user", cascade="all, delete-orphan")
-    # 在UserModel类中添加以下关系
-    invocations = relationship("AgentInvocation", back_populates="user", cascade="all, delete-orphan")
 
 # 第三方登录详情表
 class UserExternalAuth(Base):

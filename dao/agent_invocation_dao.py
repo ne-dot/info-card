@@ -43,24 +43,31 @@ class AgentInvocationDAO:
         finally:
             session.close()
     
-    def start_invocation(self, invocation_id: str) -> Optional[AgentInvocation]:
-        """设置调用开始时间并更新状态为处理中"""
+    def start_invocation(self, invocation_id, input_params=None):
+        """标记调用开始处理
+        
+        Args:
+            invocation_id: 调用ID
+            input_params: 可选的输入参数，用于更新调用的input_params
+        """
         session = self.db.get_session()
         try:
-            invocation = session.query(AgentInvocation).filter(
-                AgentInvocation.id == invocation_id
-            ).first()
-            
-            if not invocation:
-                logger.warning(f"找不到调用记录: {invocation_id}")
-                return None
-            
-            invocation.set_start_time()
-            session.commit()
-            logger.info(f"开始处理调用: {invocation_id}")
-            return invocation
+            invocation = session.query(AgentInvocation).get(invocation_id)
+            if invocation:
+                invocation.set_start_time()
+                # 如果提供了input_params，更新调用的input_params
+                if input_params:
+                    # 如果已有input_params，合并新的参数
+                    if invocation.input_params:
+                        invocation.input_params.update(input_params)
+                    else:
+                        invocation.input_params = input_params
+                session.commit()
+                logger.info(f"标记调用开始处理: {invocation_id}")
+            else:
+                logger.warning(f"未找到调用记录: {invocation_id}")
         except Exception as e:
-            logger.error(f"设置调用开始时间失败: {str(e)}")
+            logger.error(f"标记调用开始处理失败: {str(e)}")
             session.rollback()
             raise e
         finally:

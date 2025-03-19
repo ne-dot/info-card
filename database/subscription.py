@@ -26,7 +26,7 @@ class Subscription(Base):
     
     # 关系
     agent = relationship("Agent", back_populates="subscriptions")
-    user = relationship("UserModel", back_populates="subscriptions")
+    # user = relationship("UserModel", back_populates="subscriptions")
     
     def is_active(self):
         """检查订阅是否有效"""

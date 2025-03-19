@@ -25,7 +25,7 @@ class AgentInvocation(Base):
     created_at = Column(BigInteger, default=lambda: int(time.time() * 1000), comment='创建时间戳(毫秒)')
     
     # 关系
-    user = relationship("UserModel", back_populates="invocations")
+    # user = relationship("UserModel", back_populates="invocations")
     agent = relationship("Agent", back_populates="invocations")
     summary = relationship("AISummary", back_populates="invocation", uselist=False, cascade="all, delete-orphan")
     search_data = relationship("SearchRawData", back_populates="invocation", cascade="all, delete-orphan")

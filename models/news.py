@@ -7,15 +7,16 @@ class NewsItem(BaseModel):
     title: str
     link: str
     guid: Optional[str] = None
-    description: str
+    description: str = ""
     published_date: datetime
-    source: str = ""
+    source: str
     image_url: Optional[str] = None
     author: Optional[str] = None
     categories: List[str] = []
     keywords: List[str] = []
     publisher: Optional[str] = None
     subject: Optional[str] = None
+    feed_id: Optional[str] = None  # 添加feed_id属性
 
 class NewsResponse(BaseModel):
     """新闻响应模型"""

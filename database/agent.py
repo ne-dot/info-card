@@ -9,6 +9,9 @@ from .agent_prompt import AgentPrompt
 # 添加 Subscription 的导入
 from .subscription import Subscription
 
+# 移除导入中间表
+# from .rss_feed import agent_feed_association
+
 class Agent(Base):
     """Agent 模型，用于存储智能代理配置"""
     __tablename__ = "agents"
@@ -53,6 +56,12 @@ class Agent(Base):
     # 使用字符串形式的类名，延迟加载关系
     subscriptions = relationship("Subscription", back_populates="agent", cascade="all, delete-orphan", lazy="dynamic")
     invocations = relationship("AgentInvocation", back_populates="agent")
+    # 添加与AgentRSSFeed的关系
+    agent_feeds = relationship("AgentRSSFeed", back_populates="agent", cascade="all, delete-orphan")
+    
+    # 在Agent类中添加与RSSFeed的关系
+    # 移除直接的多对多关系
+    # feeds = relationship("RSSFeed", secondary=agent_feed_association, back_populates="agents")
     
     # 与用户的关系
     creator = relationship("UserModel")

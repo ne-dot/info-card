@@ -18,6 +18,7 @@ from middleware.i18n_middleware import I18nMiddleware
 from utils.i18n_utils import get_text
 from controllers import news_controller
 from utils.i18n_utils import load_translations
+from services.agent_service import AgentService
 
 logger = setup_logger('app')
 
@@ -35,15 +36,17 @@ async def lifespan(app):
     user_service = UserService(db)
     
     # 初始化新闻服务
-    wired_service = WireNewsService()
-    bbc_service = BBCNewsService()
+    wired_service = WireNewsService(db)
+    bbc_service = BBCNewsService(db)
     chat_service = DeepSeekService()
     news_service = NewsService(wired_service, bbc_service, chat_service, db)
+    agent_service = AgentService(wired_service, bbc_service, chat_service, db)
     
     # 将服务实例存储到应用状态中
     app.state.search_service = search_service
     app.state.user_service = user_service
     app.state.news_service = news_service
+    app.state.agent_service = agent_service
     
     # 初始化控制器
     search_controller.init_controller(search_service)
