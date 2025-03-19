@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, Text, Boolean, ForeignKey, Enum, Integer
 from sqlalchemy.orm import relationship
 import time
 import uuid
-from .models import Base
+from .base import Base
 
 # 用户表定义
 class UserModel(Base):

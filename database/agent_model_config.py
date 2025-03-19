@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Float, Integer, Boolean, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from .models import Base
+from .base import Base
 import uuid
 import json
 
