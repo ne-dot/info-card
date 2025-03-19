@@ -93,6 +93,7 @@ class UserService:
     async def login(self, username_or_email, password, lang='en'):
         """用户登录（支持用户名或邮箱）"""
         try:
+            # 简化日志，只记录尝试登录的用户名/邮箱
             logger.info(f"尝试登录: {username_or_email}")
 
             # 尝试通过用户名获取用户
@@ -100,33 +101,25 @@ class UserService:
             
             # 如果用户名不存在，尝试通过邮箱获取用户
             if not user:
-                logger.info(f"用户名不存在，尝试通过邮箱查找: {username_or_email}")
                 user = await self.user_dao.get_user_by_email(username_or_email)
                 
             if not user:
                 logger.warning(f"用户不存在: {username_or_email}")
                 return None, get_text("invalid_credentials", lang)
             
-            logger.info(f"找到用户: {user.username}, 用户ID: {user.user_id}")
-            
-            # 添加更多日志来调试密码验证
-            logger.info(f"输入密码: {password}")
-            logger.info(f"数据库密码哈希: {user.password_hash}")
+            # 简化找到用户的日志
+            logger.info(f"找到用户: {user.username}")
             
             password_valid = verify_password(password, user.password_hash)
             
-            logger.info(f"密码验证结果: {'成功' if password_valid else '失败'}")
-            
             if not password_valid:
-                logger.warning(f"密码错误: {username_or_email}")
+                logger.warning(f"密码验证失败: {username_or_email}")
                 return None, get_text("invalid_credentials", lang)
             
             # 更新最后登录时间
-            logger.info(f"更新用户最后登录时间: {user.user_id}")
             await self.user_dao.update_last_login(user.user_id)
             
             # 创建令牌
-            logger.info(f"为用户创建令牌: {user.username}")
             token_data = {"sub": user.user_id, "username": user.username}
             access_token, expires_in = create_access_token(token_data)
             refresh_token = create_refresh_token(token_data)
