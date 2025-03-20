@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException, Depends, Header, status
 from typing import Optional
-from models.user import UserCreate, UserLogin, UserResponse, TokenResponse
+from models.user import UserCreate, UserLogin, UserResponse, TokenResponse, AdminLoginRequest
 from services.user_service import UserService
 from utils.logger import setup_logger
 from utils.response_utils import success_response, error_response, ErrorCode
@@ -117,3 +117,28 @@ async def register(user_data: UserCreate, request: Request):
         logger.error(f"注册失败: {str(e)}")
         lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
         return error_response(f"{get_text('register_failed', lang)}: {str(e)}", ErrorCode.UNKNOWN_ERROR)
+
+@router.post("/admin/login", response_model=TokenResponse)
+async def admin_login(
+    request: Request,
+    login_data: AdminLoginRequest
+):
+    """管理员登录接口"""
+     # 从请求中获取语言设置，默认为英文
+    lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
+        
+    # 调用管理员登录服务
+    token_response, error = await user_service.admin_login(
+        login_data.email, 
+        login_data.password,
+        lang
+    )
+    
+    if error:
+        logger.warning(f"管理员登录失败: {error}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=error
+        )
+    
+    return token_response

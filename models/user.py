@@ -38,3 +38,9 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     refresh_token: Optional[str] = None
+
+
+class AdminLoginRequest(BaseModel):
+    """管理员登录请求模型"""
+    email: str
+    password: str

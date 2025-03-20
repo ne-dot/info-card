@@ -248,4 +248,51 @@ class UserService:
             logger.error(f"创建匿名用户失败: {str(e)}")
             logger.error(traceback.format_exc())
             return None, f"{get_text('anonymous_login_failed', lang)}: {str(e)}", ErrorCode.ANONYMOUS_LOGIN_FAILED
+
+    async def admin_login(self, email, password, lang='en'):
+        """管理员登录（仅支持邮箱）"""
+        try:
+            logger.info(f"尝试管理员登录: {email}")
+
+            # 通过邮箱获取用户，并且必须是admin类型
+            user = await self.user_dao.get_user_by_email_and_type(email, 'admin')
+                
+            if not user:
+                logger.warning(f"管理员不存在或类型不匹配: {email}")
+                return None, get_text("invalid_credentials", lang)
+            
+            logger.debug(f"找到管理员用户: {user.username}")
+            
+            password_valid = verify_password(password, user.password_hash)
+            
+            if not password_valid:
+                logger.warning(f"管理员密码验证失败: {email}")
+                return None, get_text("invalid_credentials", lang)
+            
+            # 更新最后登录时间
+            await self.user_dao.update_last_login(user.id)  # 这里改为 user.id
+            
+            # 创建令牌，添加admin角色标识
+            token_data = {
+                "sub": user.id,  # 这里改为 user.id
+                "username": user.username,
+                "role": "admin"  # 添加角色标识
+            }
+            access_token, expires_in = create_access_token(token_data)
+            refresh_token = create_refresh_token(token_data)
+            
+            logger.info(f"管理员登录成功: {user.username}")
+            
+            # 返回令牌
+            token_response = {
+                "access_token": access_token,
+                "token_type": "bearer",
+                "expires_in": expires_in,
+                "refresh_token": refresh_token
+            }
+            
+            return token_response, None
+        except Exception as e:
+            logger.error(f"管理员登录失败: {str(e)}")
+            return None, f"{get_text('login_failed', lang)}: {str(e)}"
     

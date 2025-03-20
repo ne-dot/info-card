@@ -6,6 +6,7 @@ from .user_models import UserModel
 from .agent import Agent
 from .rss_feed import RSSFeed
 import uuid
+from utils.password_utils import hash_password
 
 class Database:
     def __init__(self, database_url):
@@ -27,8 +28,8 @@ class Database:
         try:
             # 检查是否已有管理员用户
             admin_user = session.query(UserModel).filter_by(
-                auth_type='email', 
-                email='admin@example.com'
+                auth_type='admin', 
+                email='admin1@example.com'
             ).first()
 
             # 初始化默认RSS订阅源
@@ -38,11 +39,11 @@ class Database:
             if not admin_user:
                 admin_user = UserModel(
                     id=str(uuid.uuid4()),
-                    auth_type='email',
-                    email='admin@example.com',
-                    username='系统管理员',
+                    auth_type='admin',
+                    email='admin2@example.com',
+                    username='admin2',
                     is_email_verified=True,
-                    password_hash='hashed_password'  # 实际应用中应该使用加密后的密码
+                    password_hash=hash_password('admin123')  # 实际应用中应该使用加密后的密码
                 )
                 session.add(admin_user)
                 session.flush()

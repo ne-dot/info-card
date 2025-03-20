@@ -294,3 +294,18 @@ class UserDAO:
             logger = setup_logger('user_dao')
             logger.error(f"更新用户失败: {str(e)}")
             return None
+
+    async def get_user_by_email_and_type(self, email, auth_type):
+        """根据邮箱和认证类型获取用户"""
+        try:
+            session = self.db.get_session()
+            user = session.query(UserModel).filter(
+                UserModel.email == email,
+                UserModel.auth_type == auth_type
+            ).first()
+            return user
+        except Exception as e:
+            logger.error(f"根据邮箱和类型获取用户失败: {str(e)}")
+            return None
+        finally:
+            session.close()

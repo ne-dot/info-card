@@ -12,7 +12,7 @@ class UserModel(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment='用户唯一标识')
     
     # 身份验证系统 - 添加name参数
-    auth_type = Column(Enum('email', 'anonymous', 'mobile', 'google', 'apple', name='auth_type_enum'), 
+    auth_type = Column(Enum('email', 'anonymous', 'admin', 'mobile', 'google', 'apple', name='auth_type_enum'), 
                        nullable=False, default='anonymous', comment='认证类型')
     auth_id = Column(String(255), comment='第三方ID/手机号/匿名UUID')
     
