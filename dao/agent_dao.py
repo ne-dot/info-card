@@ -14,14 +14,13 @@ class AgentDAO:
     def __init__(self, db):
         self.db = db
     
-    def create_agent(self, user_id: str, name: str, type: str, model: str, 
-                    prompt_en: str, prompt_zh: str, 
-                    description: Optional[str] = None,
-                    name_en: Optional[str] = None,
-                    name_zh: Optional[str] = None,
-                    temperature: float = 0.7,
-                    max_tokens: int = 1000,
-                    tools: Optional[str] = None) -> Agent:
+    def create_agent(self, user_id: str, name: str, type: str = "assistant", 
+              description: Optional[str] = None,
+              name_en: Optional[str] = None,
+              name_zh: Optional[str] = None,
+              pricing: Optional[float] = 0.0,
+              visibility: Optional[str] = "public",
+              status: Optional[str] = "published") -> Agent:
         """创建一个新的Agent"""
         session = self.db.get_session()
         try:
@@ -34,36 +33,36 @@ class AgentDAO:
                 name_zh=name_zh,
                 type=type,
                 description=description,
-                model=model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                tools=tools,
+                pricing=pricing,
+                visibility=visibility,
+                status=status,
                 create_date=int(time.time()),
                 update_date=int(time.time())
             )
             session.add(agent)
             session.flush()  # 获取agent.key_id
             
-            # 创建Agent提示词
-            prompt = AgentPrompt(
-                id=str(uuid.uuid4()),
-                agent_id=agent.key_id,
-                version="1.0.0",
-                content_en=prompt_en,
-                content_zh=prompt_zh,
-                variables=json.dumps({}),
-                is_production=True,
-                creator_id=user_id,
-                created_at=int(time.time())
-            )
-            session.add(prompt)
-            
-            # 创建默认模型配置
-            AgentModelConfig.init_default_models(session, agent.key_id)
+            # 提前获取所有需要的属性
+            agent_dict = {
+                'key_id': agent.key_id,
+                'name': agent.name,
+                'name_en': agent.name_en,
+                'name_zh': agent.name_zh,
+                'description': agent.description,
+                'pricing': agent.pricing,
+                'visibility': agent.visibility,
+                'status': agent.status,
+                'type': agent.type,
+                'create_date': agent.create_date,
+                'update_date': agent.update_date
+            }
             
             session.commit()
             logger.info(f"成功创建Agent: {name}, 类型: {type}")
-            return agent
+            
+            # 重新创建一个Agent对象，避免会话关闭后的问题
+            new_agent = Agent(**agent_dict)
+            return new_agent
         except Exception as e:
             logger.error(f"创建Agent失败: {str(e)}")
             session.rollback()
@@ -230,6 +229,45 @@ class AgentDAO:
             return configs
         except Exception as e:
             logger.error(f"获取Agent模型配置失败: {str(e)}")
+            raise e
+        finally:
+            session.close()
+    
+    def get_all_agents(self, user_id: str, page: int = 1, page_size: int = 10) -> tuple:
+        """获取所有Agent，支持分页
+        
+        Args:
+            user_id: 用户ID
+            page: 页码，从1开始
+            page_size: 每页数量
+            
+        Returns:
+            tuple: (Agent列表, 总数)
+        """
+        session = self.db.get_session()
+        try:
+            # 基础查询
+            query = session.query(Agent).filter(
+                Agent.is_deleted == False
+            )
+            
+            # 如果提供了用户ID，则只查询该用户的Agent
+            if user_id:
+                query = query.filter(
+                    # 用户创建的或公开的
+                    (Agent.user_id == user_id) | (Agent.visibility == 'public')
+                )
+            
+            # 计算总数
+            total = query.count()
+            
+            # 分页查询
+            offset = (page - 1) * page_size
+            agents = query.order_by(Agent.create_date.desc()).offset(offset).limit(page_size).all()
+            
+            return agents, total
+        except Exception as e:
+            logger.error(f"获取所有Agent失败: {str(e)}")
             raise e
         finally:
             session.close()

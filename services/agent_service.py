@@ -237,3 +237,92 @@ class AgentService:
                 logger.error(f"记录失败触发时出错: {str(inner_e)}")
             
             return {"error": f"生成新闻总结失败: {str(e)}", "code": "UNKNOWN_ERROR"}
+
+    async def get_all_agents(self, request):
+        """获取所有Agent，支持分页
+        
+        Args:
+            request: AgentListRequest 对象，包含分页参数和用户ID
+        
+        Returns:
+            dict: 包含agents列表和分页信息的字典
+        """
+        try:
+            # 获取所有Agent
+            agents, total = self.agent_dao.get_all_agents(
+                user_id=request.user_id,
+                page=request.page, 
+                page_size=request.page_size
+            )
+            
+            # 转换为响应格式
+            agent_list = []
+            for agent in agents:
+                agent_list.append({
+                    'key_id': agent.key_id,
+                    'name': agent.name,
+                    'name_en': agent.name_en,
+                    'name_zh': agent.name_zh,
+                    'description': agent.description,
+                    'pricing': agent.pricing,
+                    'visibility': agent.visibility,
+                    'status': agent.status,
+                    'type': agent.type,
+                    'create_date': agent.create_date,
+                    'update_date': agent.update_date
+                })
+            
+            # 返回结果
+            return {
+                'agents': agent_list,
+                'total': total,
+                'page': request.page,
+                'page_size': request.page_size,
+                'total_pages': (total + request.page_size - 1) // request.page_size
+            }
+        except Exception as e:
+            logger.error(f"获取所有Agent服务失败: {str(e)}")
+            raise Exception(f"获取所有Agent失败: {str(e)}")
+
+    async def create_agent(self, agent_data, user_id):
+        """创建一个新的Agent
+        
+        Args:
+            agent_data: AgentCreateRequest 对象，包含创建Agent所需的参数
+            user_id: 用户ID
+        
+        Returns:
+            dict: 创建的Agent信息
+        """
+        try:
+            # 调用DAO层创建Agent
+            agent = self.agent_dao.create_agent(
+                user_id=user_id,
+                name=agent_data.name,
+                name_en=agent_data.name_en,
+                name_zh=agent_data.name_zh,
+                description=agent_data.description,
+                pricing=agent_data.pricing,
+                visibility=agent_data.visibility,
+                status=agent_data.status,
+                type="assistant"  # 默认类型为assistant
+            )
+            
+            # 构建返回结果
+            result = {
+                'key_id': agent.key_id,
+                'name': agent.name,
+                'name_en': agent.name_en,
+                'name_zh': agent.name_zh,
+                'description': agent.description,
+                'pricing': agent.pricing,
+                'visibility': agent.visibility,
+                'status': agent.status,
+                'type': agent.type,
+                'create_date': agent.create_date
+            }
+            
+            return result
+        except Exception as e:
+            logger.error(f"创建Agent服务失败: {str(e)}")
+            raise Exception(f"创建Agent失败: {str(e)}")

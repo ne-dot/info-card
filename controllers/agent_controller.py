@@ -11,6 +11,7 @@ from config.prompts.news_prompts import BASE_PROMPT_EN, BASE_PROMPT_ZH
 import uuid
 import time
 from sqlalchemy.orm import Session
+from models.agent import AgentCreateRequest
 
 logger = setup_logger('agent_controller')
 router = APIRouter(tags=["Agent"], include_in_schema=True)
@@ -25,39 +26,21 @@ def init_controller(db):
     logger.info("Agent控制器初始化完成")
 
 @router.post("/agent/create")
-async def create_agent(data: dict, request: Request):
+async def create_agent(
+    agent_data: AgentCreateRequest, 
+    request: Request, 
+    current_user: UserResponse = Depends(get_current_user)
+):
     """创建一个新的Agent"""
     try:
-        # 检查必要的参数
-        required_fields = ['name', 'type', 'model', 'prompt_en', 'user_id']
-        for field in required_fields:
-            if field not in data:
-                return error_response(f'缺少必要参数: {field}', ErrorCode.INVALID_PARAMS)
+        # 获取agent服务
+        agent_service = request.app.state.agent_service
         
-        # 创建Agent
-        agent = agent_dao.create_agent(
-            user_id=data['user_id'],
-            name=data['name'],
-            type=data['type'],
-            model=data['model'],
-            prompt_en=data['prompt_en'],
-            prompt_zh=data.get('prompt_zh', ''),  # 中文提示词可选
-            description=data.get('description', ''),
-            name_en=data.get('name_en', ''),
-            name_zh=data.get('name_zh', ''),
-            temperature=data.get('temperature', 0.7),
-            max_tokens=data.get('max_tokens', 1000),
-            tools=json.dumps(data.get('tools', {})) if 'tools' in data else None
-        )
+        # 调用服务创建Agent，传递用户ID
+        result = await agent_service.create_agent(agent_data, current_user.user_id)
         
-        # 返回创建的Agent信息
-        return success_response({
-            'key_id': agent.key_id,
-            'name': agent.name,
-            'type': agent.type,
-            'model': agent.model,
-            'create_date': agent.create_date
-        })
+        # 返回结果
+        return success_response(result)
     except Exception as e:
         logger.error(f"创建Agent失败: {str(e)}")
         return error_response(f"创建Agent失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
@@ -84,3 +67,33 @@ async def trigger_news_agent(
     except Exception as e:
         logger.error(f"触发新闻Agent失败: {str(e)}")
         return error_response(f"触发新闻Agent失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
+
+
+@router.get("/agents")
+async def get_all_agents(
+    page: int = 1, 
+    page_size: int = 10,
+    request: Request = None,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """获取所有Agent，支持分页"""
+    try:
+        # 获取agent服务
+        agent_service = request.app.state.agent_service
+        
+        # 创建请求参数
+        from models.agent import AgentListRequest
+        agent_request = AgentListRequest(
+            page=page,
+            page_size=page_size,
+            user_id=current_user.user_id
+        )
+        
+        # 调用服务获取所有Agent
+        result = await agent_service.get_all_agents(agent_request)
+        
+        # 返回结果
+        return success_response(result)
+    except Exception as e:
+        logger.error(f"获取所有Agent失败: {str(e)}")
+        return error_response(f"获取所有Agent失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)

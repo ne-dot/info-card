@@ -25,9 +25,6 @@ class ToolDAO:
             # 在提交后刷新对象，确保所有属性都已加载
             session.refresh(tool)
             
-            # 打印出Tool里面所有的值
-            logger.debug(f"Tool对象: {tool.__dict__}")
-            
             # 创建一个包含所有需要的属性的字典
             tool_dict = {
                 "id": tool.id,
@@ -40,9 +37,6 @@ class ToolDAO:
                 "created_at": tool.created_at,
                 "updated_at": tool.updated_at
             }
-            
-            # 打印出转换后的字典
-            logger.debug(f"转换后的字典: {tool_dict}")
             
             logger.info(f"创建工具成功: {name}")
             return tool_dict  # 返回字典而不是 SQLAlchemy 对象
