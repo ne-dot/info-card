@@ -48,8 +48,12 @@ def error_response(message: str, error_code: Union[int, Enum] = 400, data: Any =
 class ErrorCode(Enum):
     """错误码定义"""
     # 通用错误 (1000-1999)
+    SUCCESS = 0
     UNKNOWN_ERROR = 1000
     INVALID_PARAMS = 1001
+    AUTH_FAILED = 1002
+    PERMISSION_DENIED = 1003
+    RESOURCE_NOT_FOUND = 1004  # 添加资源不存在的错误码
     
     # 用户相关错误 (2000-2999)
     USER_NOT_FOUND = 2000

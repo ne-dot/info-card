@@ -49,7 +49,11 @@ class Database:
                 session.flush()
                 
                 # 初始化默认Agent
-                Agent.init_default_agents(session, admin_user.id)
+                try:
+                    Agent.init_default_agents(session, admin_user.id)
+                except Exception as e:
+                    print(f"初始化默认Agent时出错: {e}")
+                    # 继续执行，不要因为Agent初始化失败而中断整个过程
                 
                 session.commit()
                 print("已创建管理员用户和默认Agent")
@@ -58,13 +62,15 @@ class Database:
                 agents = session.query(Agent).filter_by(user_id=admin_user.id).all()
                 if not agents:
                     # 初始化默认Agent
-                    Agent.init_default_agents(session, admin_user.id)
-                    session.commit()
-                    print("已创建默认Agent")
+                    try:
+                        Agent.init_default_agents(session, admin_user.id)
+                        session.commit()
+                        print("已创建默认Agent")
+                    except Exception as e:
+                        session.rollback()
+                        print(f"初始化默认Agent时出错: {e}")
                 else:
                     print("数据库已初始化")
-            
-            
         
         except Exception as e:
             session.rollback()

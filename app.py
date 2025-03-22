@@ -7,7 +7,8 @@ from services.wired_news_service import WireNewsService
 from services.bbc_news_service import BBCNewsService
 from services.deepseek_service import DeepSeekService
 from services.tool_service import ToolService
-from controllers import search_controller, user_controller, agent_controller
+from services.agent_model_config_service import AgentModelConfigService
+from controllers import search_controller, user_controller, agent_controller, tool_controller, agent_model_config_controller
 from database.connection import Database
 from dao.user_dao import UserDAO
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +19,6 @@ from middleware.i18n_middleware import I18nMiddleware
 from utils.i18n_utils import get_text
 from utils.i18n_utils import load_translations
 from services.agent_service import AgentService
-from controllers import tool_controller
 
 logger = setup_logger('app')
 
@@ -42,6 +42,7 @@ async def lifespan(app):
     agent_service = AgentService(wired_service, bbc_service, chat_service, db)
     tool_service = ToolService(db)
     app.state.tool_service = tool_service
+    model_config_service = AgentModelConfigService(db)
 
     # 将服务实例存储到应用状态中
     app.state.search_service = search_service
@@ -53,6 +54,7 @@ async def lifespan(app):
     user_controller.init_controller(user_service)
     agent_controller.init_controller(db)  # 初始化Agent控制器
     tool_controller.init_controller(tool_service)
+    agent_model_config_controller.init_controller(model_config_service)
     logger.info("应用程序初始化完成")
     
     yield
@@ -84,6 +86,7 @@ app.include_router(search_controller.router, prefix="/api", tags=["搜索"])
 app.include_router(user_controller.router, prefix="/api/users", tags=["用户"])
 app.include_router(agent_controller.router, prefix="/api", tags=["Agent"])  # 注册Agent路由
 app.include_router(tool_controller.router, prefix="/api/tools", tags=["工具"])
+app.include_router(agent_model_config_controller.router, prefix="/api/model-configs", tags=["模型配置"])
 
 @app.get("/")
 async def root():
