@@ -80,11 +80,27 @@ class ToolDAO:
         finally:
             session.close()
             
-    async def get_all_tools(self):
-        """获取所有工具"""
+    async def get_all_tools(self, page=1, page_size=10):
+        """获取所有工具，支持分页
+        
+        Args:
+            page: 页码，从1开始
+            page_size: 每页数量
+        
+        Returns:
+            tuple: (工具列表, 总数量)
+        """
         try:
             session = self.db.get_session()
-            tools = session.query(Tool).all()
+            
+            # 计算总数
+            total = session.query(Tool).count()
+            
+            # 计算偏移量
+            offset = (page - 1) * page_size
+            
+            # 查询分页数据
+            tools = session.query(Tool).order_by(Tool.created_at.desc()).offset(offset).limit(page_size).all()
             
             # 转换为字典列表
             tools_dict = []
@@ -102,10 +118,10 @@ class ToolDAO:
                 }
                 tools_dict.append(tool_dict)
                 
-            return tools_dict
+            return tools_dict, total
         except Exception as e:
             logger.error(f"获取所有工具失败: {str(e)}")
-            return []
+            return [], 0
         finally:
             session.close()
             

@@ -37,14 +37,22 @@ class ToolService:
             logger.error(f"获取工具服务失败: {str(e)}")
             return None, f"获取工具失败: {str(e)}", ErrorCode.UNKNOWN_ERROR
             
-    async def get_all_tools(self):
-        """获取所有工具"""
+    async def get_all_tools(self, page=1, page_size=10):
+        """获取所有工具，支持分页
+        
+        Args:
+            page: 页码，从1开始
+            page_size: 每页数量
+            
+        Returns:
+            tuple: (工具列表, 总数量, 错误信息, 错误码)
+        """
         try:
-            tools_dict = await self.tool_dao.get_all_tools()
-            return tools_dict, None, None
+            tools_dict, total = await self.tool_dao.get_all_tools(page, page_size)
+            return tools_dict, total, None, None
         except Exception as e:
             logger.error(f"获取所有工具服务失败: {str(e)}")
-            return None, f"获取所有工具失败: {str(e)}", ErrorCode.UNKNOWN_ERROR
+            return None, 0, f"获取所有工具失败: {str(e)}", ErrorCode.UNKNOWN_ERROR
             
     async def update_tool(self, tool_id, **kwargs):
         """更新工具信息"""

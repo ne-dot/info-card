@@ -67,15 +67,35 @@ async def get_tool(tool_id: str, current_user = Depends(get_current_user)):
         return error_response(f"获取工具失败: {str(e)}")
 
 @router.get("/", response_model=List[ToolResponse])
-async def get_all_tools(current_user = Depends(get_current_user)):
-    """获取所有工具"""
+async def get_all_tools(
+    current_user = Depends(get_current_user),
+    page: int = 1,
+    page_size: int = 10
+):
+    """获取所有工具，支持分页
+    
+    Args:
+        page: 页码，从1开始
+        page_size: 每页数量
+    """
     try:
-        tools, error, error_code = await tool_service.get_all_tools()
+        tools, total, error, error_code = await tool_service.get_all_tools(page, page_size)
         
         if error:
             return error_response(error, error_code)
+        
+        # 构建包含分页信息的响应
+        response_data = {
+            "items": tools,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total": total,
+                "total_pages": (total + page_size - 1) // page_size
+            }
+        }
             
-        return success_response(tools, "获取所有工具成功")
+        return success_response(response_data, "获取所有工具成功")
     except Exception as e:
         logger.error(f"获取所有工具失败: {str(e)}")
         return error_response(f"获取所有工具失败: {str(e)}")
