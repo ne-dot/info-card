@@ -8,6 +8,7 @@ from .agent_model_config import AgentModelConfig
 from .agent_prompt import AgentPrompt
 # 添加 Subscription 的导入
 from .subscription import Subscription
+from .tool_models import agent_tool_mapping
 
 # 移除导入中间表
 # from .rss_feed import agent_feed_association
@@ -62,7 +63,8 @@ class Agent(Base):
     # 在Agent类中添加与RSSFeed的关系
     # 移除直接的多对多关系
     # feeds = relationship("RSSFeed", secondary=agent_feed_association, back_populates="agents")
-    
+      # 与 Tool 的多对多关系
+    tools = relationship("Tool", secondary="agent_tool_mapping", back_populates="agents")
     # 与用户的关系
     creator = relationship("UserModel")
     
@@ -154,3 +156,5 @@ class Agent(Base):
         AgentPrompt.init_default_prompts(session, news_agent.key_id, creator_id, "news")
         
         return [search_agent, news_agent]
+    
+  

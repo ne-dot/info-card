@@ -29,7 +29,7 @@ class Database:
             # 检查是否已有管理员用户
             admin_user = session.query(UserModel).filter_by(
                 auth_type='admin', 
-                email='admin1@example.com'
+                email='admin2@example.com'
             ).first()
 
             # 初始化默认RSS订阅源
