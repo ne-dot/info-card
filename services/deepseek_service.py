@@ -19,7 +19,7 @@ class DeepSeekService:
     def invoke(self, messages, tools=None):
         try:
             # 记录调用信息
-            logger.info(f"调用DeepSeek API，消息数: {len(messages)}")
+            logger.info(f"调用DeepSeek API，消息: {messages}")
             if tools:
                 logger.info(f"使用工具: {[tool.name for tool in tools]}")
                 

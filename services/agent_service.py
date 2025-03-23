@@ -19,6 +19,7 @@ from langchain.schema import HumanMessage, SystemMessage
 logger = setup_logger('agent_service')
 
 class AgentService:
+    # 在类的初始化方法中添加 agent_model_config_dao
     def __init__(self, wired_service: WireNewsService, bbc_service: BBCNewsService, chat_service: DeepSeekService, db):
         self.wired_service = wired_service
         self.bbc_service = bbc_service
@@ -27,6 +28,9 @@ class AgentService:
         self.agent_invocation_dao = AgentInvocationDAO(db)
         self.rss_entry_dao = RSSEntryDAO(db)
         self.agent_prompt_dao = AgentPromptDAO(db)
+        # 添加 agent_model_config_dao 实例
+        from dao.agent_model_config_dao import AgentModelConfigDAO
+        self.agent_model_config_dao = AgentModelConfigDAO(db)
     
     async def fetch_all_news(self, limit: int) -> tuple[List[NewsItem], List[str]]:
         """获取所有来源的新闻
@@ -467,3 +471,148 @@ class AgentService:
         except Exception as e:
             logger.error(f"配置Agent服务失败: {str(e)}")
             raise Exception(f"配置Agent失败: {str(e)}")
+
+    async def trigger_agent(self, agent_id: str, user_id: str):
+        """触发指定的Agent，获取AI响应
+        
+        Args:
+            agent_id: Agent的ID
+            user_id: 当前用户ID
+            
+        Returns:
+            dict: 包含AI响应和工具调用结果
+        """
+        try:
+            # 获取Agent
+            agent = self.agent_dao.get_agent_by_key_id(agent_id)
+            if not agent:
+                raise Exception(f"找不到ID为{agent_id}的Agent")
+            
+            # 检查权限
+            if not agent.check_user_access(user_id):
+                raise Exception("您没有权限触发此Agent")
+            
+            # 检查必要配置
+            # 1. 检查模型配置
+            if not agent.model_config_id:
+                raise Exception("Agent未配置模型，无法触发")
+            
+            # 2. 检查提示词配置
+            prompts = self.agent_prompt_dao.get_prompts_by_agent_id(agent_id)
+            if not prompts or len(prompts) == 0:
+                raise Exception("Agent未配置提示词，无法触发")
+            
+            # 获取模型配置 - 使用 await 调用异步方法
+            model_config = await self.agent_model_config_dao.get_model_config_by_id(agent.model_config_id)
+            if not model_config:
+                raise Exception(f"找不到ID为{agent.model_config_id}的模型配置")
+            
+            logger.info(f"获取到的模型配置: {model_config}")
+            
+            # 使用工厂模式初始化AI服务
+            from services.model_factory import ModelFactory
+            try:
+                ai_service = ModelFactory.create_model_service(
+                    model_config["model_name"],  # 使用字典访问方式
+                    model_config["config"]  # 使用字典访问方式
+                )
+            except Exception as model_error:
+                logger.error(f"初始化模型服务失败: {str(model_error)}")
+                raise Exception(f"初始化模型服务失败: {str(model_error)}")
+            
+
+            
+            # 直接从数据库获取工具关联，而不是使用agent.tools
+            tool_results = {}
+            tools = self.agent_dao.get_tools_by_agent_id(agent_id)
+            
+            if tools and len(tools) > 0:
+                # 使用工厂模式初始化和调用工具服务
+                from services.tool_factory import ToolFactory
+                tool_results = await ToolFactory.create_and_invoke_tools(tools)
+        
+            
+            # 获取提示词
+            prompt = prompts[0]  # 使用第一个提示词
+            prompt_content = prompt.content_en or prompt.content_zh
+            
+            # 构建完整提示词，包含工具结果
+            full_prompt = prompt_content
+            if tool_results:
+                full_prompt += "\n\n工具调用结果:\n"
+                for tool_name, result in tool_results.items():
+                    full_prompt += f"\n{tool_name}:\n{result}\n"
+            
+            # 创建调用记录 - 正确处理返回的对象
+            invocation = self.agent_invocation_dao.create_invocation(
+                agent_id=agent_id,
+                user_id=user_id,
+                input_text="触发Agent请求"
+            )
+            
+            # 从返回的对象中获取ID
+            invocation_id = invocation.id if hasattr(invocation, 'id') else str(invocation)
+            
+            # 标记开始处理，并保存full_prompt到input_params
+            input_params = {"prompt": full_prompt}
+            self.agent_invocation_dao.start_invocation(invocation_id, input_params=input_params)
+            
+            # 使用消息列表方式调用AI服务
+            messages = [
+                SystemMessage(content=full_prompt),
+                HumanMessage(content="请根据以上信息提供回复")
+            ]
+            ai_response = ai_service.invoke(messages)
+            
+            # 从响应中提取内容
+            if hasattr(ai_response, 'content'):
+                ai_response = ai_response.content
+            
+            # 更新Agent的触发时间
+            self.agent_dao.update_agent_trigger_date(agent_id)
+            
+            # 完成调用记录，标记为成功
+            metrics = {"output_text": ai_response}
+            self.agent_invocation_dao.complete_invocation(
+                invocation_id,
+                success=True,
+                metrics=metrics
+            )
+            
+            # 返回结果
+            return {
+                "agent_id": agent_id,
+                "ai_response": ai_response,
+                "tool_results": tool_results,
+                "invocation_id": invocation_id
+            }
+        except Exception as e:
+            logger.error(f"触发Agent失败: {str(e)}")
+            
+            # 记录失败的调用
+            try:
+                if 'invocation_id' in locals():
+                    # 如果已经创建了调用记录，更新它为失败
+                    self.agent_invocation_dao.complete_invocation(
+                        invocation_id,
+                        success=False,
+                        error=str(e)
+                    )
+                else:
+                    # 如果还没有创建调用记录，创建一个失败的记录
+                    invocation = self.agent_invocation_dao.create_invocation(
+                        agent_id=agent_id,
+                        user_id=user_id,
+                        input_text="触发Agent请求"
+                    )
+                    # 从返回的对象中获取ID
+                    invocation_id = invocation.id if hasattr(invocation, 'id') else str(invocation)
+                    self.agent_invocation_dao.complete_invocation(
+                        invocation_id,
+                        success=False,
+                        error=str(e)
+                    )
+            except Exception as inner_e:
+                logger.error(f"记录失败调用时出错: {str(inner_e)}")
+            
+            raise Exception(f"触发Agent失败: {str(e)}")

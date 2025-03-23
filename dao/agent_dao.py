@@ -326,3 +326,35 @@ class AgentDAO:
             # 关闭会话
             if 'session' in locals():
                 session.close()
+    
+    def get_tools_by_agent_id(self, agent_id):
+        """获取Agent关联的工具列表
+        
+        Args:
+            agent_id: Agent的ID
+            
+        Returns:
+            list: 工具对象列表
+        """
+        try:
+            session = self.db.get_session()
+            
+            # 获取Agent对象
+            from database.agent import Agent
+            from database.tool_models import Tool
+            
+            # 直接通过Agent对象获取关联的工具
+            agent = session.query(Agent).filter(Agent.key_id == agent_id).first()
+            if not agent:
+                logger.warning(f"找不到ID为{agent_id}的Agent")
+                return []
+            
+            # 返回关联的工具列表
+            return agent.tools
+            
+        except Exception as e:
+            # 使用全局logger
+            logger.error(f"获取Agent工具列表失败: {str(e)}")
+            return []
+        finally:
+            session.close()

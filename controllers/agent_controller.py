@@ -198,3 +198,24 @@ async def get_all_agents(
     except Exception as e:
         logger.error(f"获取所有Agent失败: {str(e)}")
         return error_response(f"获取所有Agent失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
+
+
+@router.post("/agents/{agent_id}/trigger")
+async def trigger_agent(
+    agent_id: str,
+    request: Request,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """触发指定的Agent，获取AI响应"""
+    try:
+        # 获取agent服务
+        agent_service = request.app.state.agent_service
+        
+        # 调用服务触发Agent
+        result = await agent_service.trigger_agent(agent_id, current_user.user_id)
+        
+        # 返回结果
+        return success_response(result)
+    except Exception as e:
+        logger.error(f"触发Agent失败: {str(e)}")
+        return error_response(f"触发Agent失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
