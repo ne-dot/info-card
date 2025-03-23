@@ -1,6 +1,7 @@
 from typing import List, Optional
 from datetime import datetime
 import time
+import uuid  # 添加uuid模块导入
 from fastapi import Request
 from sqlalchemy.orm import Session
 from dao.agent_dao import AgentDAO
@@ -326,3 +327,143 @@ class AgentService:
         except Exception as e:
             logger.error(f"创建Agent服务失败: {str(e)}")
             raise Exception(f"创建Agent失败: {str(e)}")
+
+    async def update_agent(self, agent_id: str, agent_data, user_id: str):
+        """更新Agent信息
+        
+        Args:
+            agent_id: Agent的ID
+            agent_data: 更新的Agent数据
+            user_id: 当前用户ID
+            
+        Returns:
+            dict: 更新后的Agent信息
+        """
+        try:
+            # 获取Agent
+            agent = self.agent_dao.get_agent_by_key_id(agent_id)
+            if not agent:
+                raise Exception(f"找不到ID为{agent_id}的Agent")
+            
+            # 检查权限
+            if agent.user_id != user_id:
+                raise Exception("您没有权限修改此Agent")
+            
+            # 准备更新数据
+            update_data = {
+                "name": agent_data.name,
+                "description": agent_data.description,
+                "pricing": agent_data.pricing,
+                "visibility": agent_data.visibility,
+                "status": agent_data.status
+            }
+            
+            # 如果提供了英文名和中文名，也更新它们
+            if agent_data.name_en:
+                update_data["name_en"] = agent_data.name_en
+            if agent_data.name_zh:
+                update_data["name_zh"] = agent_data.name_zh
+            
+            # 调用DAO层更新Agent
+            updated_agent = self.agent_dao.update_agent(agent_id, **update_data)
+            
+            # 构建返回结果
+            result = {
+                'key_id': updated_agent.key_id,
+                'name': updated_agent.name,
+                'name_en': updated_agent.name_en,
+                'name_zh': updated_agent.name_zh,
+                'description': updated_agent.description,
+                'pricing': updated_agent.pricing,
+                'visibility': updated_agent.visibility,
+                'status': updated_agent.status,
+                'type': updated_agent.type,
+                'update_date': updated_agent.update_date
+            }
+            
+            return result
+        except Exception as e:
+            logger.error(f"更新Agent服务失败: {str(e)}")
+            raise Exception(f"更新Agent失败: {str(e)}")
+
+    async def config_agent(self, agent_id: str, config_data, user_id: str):
+        """配置Agent的提示词、工具、模型等参数
+        
+        Args:
+            agent_id: Agent的ID
+            config_data: 配置数据，包含提示词、工具ID、模型ID和模型参数
+            user_id: 当前用户ID
+            
+        Returns:
+            dict: 配置结果
+        """
+        try:
+            # 获取Agent
+            agent = self.agent_dao.get_agent_by_key_id(agent_id)
+            if not agent:
+                raise Exception(f"找不到ID为{agent_id}的Agent")
+            
+            # 检查权限
+            if agent.user_id != user_id:
+                raise Exception("您没有权限配置此Agent")
+            
+            # 更新提示词 - 修改为使用agent_prompt_dao
+            if config_data.prompt_zh or config_data.prompt_en:
+                # 获取Agent现有的提示词
+                prompts = self.agent_prompt_dao.get_prompts_by_agent_id(agent_id)
+                
+                if prompts and len(prompts) > 0:
+                    # 如果已有提示词，更新第一个提示词
+                    prompt_id = prompts[0].id
+                    prompt_data = {}
+                    
+                    if config_data.prompt_zh:
+                        prompt_data["content_zh"] = config_data.prompt_zh
+                    if config_data.prompt_en:
+                        prompt_data["content_en"] = config_data.prompt_en
+                    
+                    # 更新提示词
+                    self.agent_prompt_dao.update_prompt(prompt_id, **prompt_data)
+                    logger.info(f"已更新Agent {agent_id} 的提示词")
+                else:
+                    # 如果没有提示词，创建新的提示词
+                    prompt_data = {
+                        "agent_id": agent_id,
+                        "creator_id": user_id,  # 修改这里，使用creator_id而不是user_id
+                        "content_zh": config_data.prompt_zh if config_data.prompt_zh else None,
+                        "content_en": config_data.prompt_en if config_data.prompt_en else None,
+                        "version": "1.0.0",
+                        "is_production": True
+                    }
+                    
+                    # 创建提示词
+                    self.agent_prompt_dao.create_prompt(**prompt_data)
+                    logger.info(f"已为Agent {agent_id} 创建新的提示词")
+            
+            # 更新工具配置
+            if config_data.tool_ids is not None:
+                # 删除现有的所有工具关联
+                self.agent_dao.remove_all_agent_tools(agent_id)
+                logger.info(f"已删除Agent {agent_id} 的所有工具关联")
+                
+                # 添加新的工具关联
+                if config_data.tool_ids and len(config_data.tool_ids) > 0:
+                    for tool_id in config_data.tool_ids:
+                        self.agent_dao.add_agent_tool(agent_id, tool_id)
+                    logger.info(f"已为Agent {agent_id} 添加 {len(config_data.tool_ids)} 个工具关联")
+            
+            # 更新模型配置关联
+            if hasattr(config_data, 'model_id') and config_data.model_id:
+                # 更新Agent的model_config_id字段
+                self.agent_dao.update_agent(agent_id, model_config_id=config_data.model_id)
+                logger.info(f"已为Agent {agent_id} 设置模型配置 {config_data.model_id}")
+            
+            # 返回配置结果
+            return {
+                "agent_id": agent_id,
+                "status": "success",
+                "message": "Agent配置已更新"
+            }
+        except Exception as e:
+            logger.error(f"配置Agent服务失败: {str(e)}")
+            raise Exception(f"配置Agent失败: {str(e)}")

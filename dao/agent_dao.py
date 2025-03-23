@@ -69,7 +69,6 @@ class AgentDAO:
             raise e
         finally:
             session.close()
-
     
     def get_agent_by_key_id(self, key_id: str) -> Optional[Agent]:
         """通过key_id获取Agent"""
@@ -106,38 +105,6 @@ class AgentDAO:
             if not agent:
                 logger.warning(f"找不到key_id为{key_id}的Agent")
                 return None
-            
-            # 处理提示词更新
-            prompt_en = kwargs.pop('prompt_en', None)
-            prompt_zh = kwargs.pop('prompt_zh', None)
-            
-            if prompt_en or prompt_zh:
-                # 获取当前生产环境的提示词
-                prompt = session.query(AgentPrompt).filter(
-                    AgentPrompt.agent_id == key_id,
-                    AgentPrompt.is_production == True
-                ).first()
-                
-                if prompt:
-                    # 更新现有提示词
-                    if prompt_en:
-                        prompt.content_en = prompt_en
-                    if prompt_zh:
-                        prompt.content_zh = prompt_zh
-                else:
-                    # 创建新提示词
-                    new_prompt = AgentPrompt(
-                        id=str(uuid.uuid4()),
-                        agent_id=key_id,
-                        version="1.0.0",
-                        content_en=prompt_en or "",
-                        content_zh=prompt_zh or "",
-                        variables=json.dumps({}),
-                        is_production=True,
-                        creator_id=agent.user_id,
-                        created_at=int(time.time())
-                    )
-                    session.add(new_prompt)
             
             # 更新提供的字段
             for key, value in kwargs.items():
@@ -271,3 +238,91 @@ class AgentDAO:
             raise e
         finally:
             session.close()
+    
+    def remove_all_agent_tools(self, agent_id: str) -> bool:
+        """删除Agent的所有工具关联
+        
+        Args:
+            agent_id: Agent ID
+            
+        Returns:
+            bool: 是否成功删除
+        """
+        try:
+            # 获取会话
+            session = self.db.get_session()
+            
+            # 获取Agent对象
+            agent = session.query(Agent).filter(Agent.key_id == agent_id).first()
+            if not agent:
+                return False
+            
+            # 清空工具关联
+            agent.tools = []
+            
+            # 提交事务
+            session.commit()
+            
+            return True
+        except Exception as e:
+            from utils.logger import setup_logger
+            logger = setup_logger('agent_dao')
+            logger.error(f"删除Agent工具关联失败: {str(e)}")
+            
+            # 回滚事务
+            if 'session' in locals():
+                session.rollback()
+            return False
+        finally:
+            # 关闭会话
+            if 'session' in locals():
+                session.close()
+    
+    def add_agent_tool(self, agent_id: str, tool_id: str) -> bool:
+        """为Agent添加工具关联
+        
+        Args:
+            agent_id: Agent ID
+            tool_id: 工具ID
+            
+        Returns:
+            bool: 是否成功添加
+        """
+        try:
+            # 获取会话
+            session = self.db.get_session()
+            
+            # 获取Agent和Tool对象
+            from database.agent import Agent
+            # 修改导入语句，使用正确的Tool模型导入路径
+            from database.tool_models import Tool
+            
+            agent = session.query(Agent).filter(Agent.key_id == agent_id).first()
+            tool = session.query(Tool).filter(Tool.id == tool_id).first()
+            
+            if not agent or not tool:
+                logger.error(f"添加工具关联失败: Agent或Tool不存在 (agent_id={agent_id}, tool_id={tool_id})")
+                return False
+            
+            # 添加工具关联
+            if tool not in agent.tools:
+                agent.tools.append(tool)
+                logger.info(f"成功添加工具关联: Agent={agent.name}, Tool={tool.id}")
+            else:
+                logger.info(f"工具关联已存在: Agent={agent.name}, Tool={tool.id}")
+            
+            # 提交事务
+            session.commit()
+            
+            return True
+        except Exception as e:
+            logger.error(f"添加Agent工具关联失败: {str(e)}")
+            
+            # 回滚事务
+            if 'session' in locals():
+                session.rollback()
+            return False
+        finally:
+            # 关闭会话
+            if 'session' in locals():
+                session.close()

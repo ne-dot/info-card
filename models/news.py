@@ -18,7 +18,13 @@ class NewsItem(BaseModel):
     subject: Optional[str] = None
     feed_id: Optional[str] = None  # 添加feed_id属性
 
+    class Config:
+        from_attributes = True  # Changed from orm_mode = True
+
 class NewsResponse(BaseModel):
     """新闻响应模型"""
     items: List[NewsItem]
     count: int
+
+    class Config:
+        from_attributes = True  # Changed from orm_mode = True

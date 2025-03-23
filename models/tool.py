@@ -7,12 +7,20 @@ class ToolType(str, Enum):
     FUNCTION = "function"
     RSS = "rss"
 
+    class Config:
+        from_attributes = True  # Changed from orm_mode = True
+
+
 class ToolBase(BaseModel):
     name: str
     tool_type: ToolType
     endpoint: Optional[str] = None
     description: Optional[str] = None
     config_params: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True  # Changed from orm_mode = True
+
 
 class ToolCreate(ToolBase):
     pass
@@ -24,6 +32,9 @@ class ToolUpdate(BaseModel):
     description: Optional[str] = None
     config_params: Optional[Dict[str, Any]] = None
     is_enabled: Optional[bool] = None
+    class Config:
+        from_attributes = True  # Changed from orm_mode = True
+
 
 class ToolResponse(ToolBase):
     id: str
@@ -32,4 +43,4 @@ class ToolResponse(ToolBase):
     updated_at: int
     
     class Config:
-        orm_mode = True
+        from_attributes = True

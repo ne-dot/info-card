@@ -50,7 +50,6 @@ class Agent(Base):
     model_config_id = Column(String(36), ForeignKey("agent_model_configs.id"), nullable=True)
     model_config = relationship("AgentModelConfig", back_populates="agents")
     
-    
     prompts = relationship("AgentPrompt", back_populates="agent", cascade="all, delete-orphan")
     # 使用字符串形式的类名，延迟加载关系
     subscriptions = relationship("Subscription", back_populates="agent", cascade="all, delete-orphan", lazy="dynamic")
@@ -99,61 +98,90 @@ class Agent(Base):
                 
         return False
     
-    # @classmethod
-    # def init_default_agents(cls, session, creator_id):
-    #     """初始化默认Agent"""
-    #     # 创建搜索Agent
-    #     search_agent = cls(
-    #         key_id=str(uuid.uuid4()),
-    #         user_id=creator_id,
-    #         name="搜索助手",
-    #         name_en="Search Assistant",
-    #         name_zh="搜索助手",
-    #         description="专业的搜索结果分析和总结助手",
-    #         model="gpt-4-turbo",
-    #         temperature=0.7,
-    #         max_tokens=2000,
-    #         pricing=0.0,
-    #         visibility="public",
-    #         status="published",
-    #         type="search",
-    #         tools=json.dumps({"search": {"enabled": True}}),
-    #         is_deleted=False
-    #     )
+    # 添加获取visibility可见性的接口
+    @classmethod
+    def get_visibility_options(cls):
+        """获取所有可用的可见性选项
         
-    #     # 创建新闻Agent
-        # news_agent = cls(
-        #     key_id=str(uuid.uuid4()),
-        #     user_id=creator_id,
-        #     name="科技新闻助手",
-        #     name_en="Tech News Assistant",
-        #     name_zh="科技新闻助手",
-        #     description="专业的科技新闻分析和总结助手",
-        #     model="gpt-4-turbo",
-        #     temperature=0.7,
-        #     max_tokens=2000,
-        #     pricing=0.0,
-        #     visibility="public",
-        #     status="published",
-        #     type="technews",
-        #     tools=json.dumps({"news_fetch": {"enabled": True}}),
-        #     is_deleted=False
-        # )
+        Returns:
+            list: 可见性选项列表
+        """
+        return ['public', 'private', 'organization']
+    
+    def get_visibility(self):
+        """获取当前Agent的可见性
         
-    #     # 添加到会话
-    #     session.add(search_agent)
-    #     session.add(news_agent)
-    #     session.flush()  # 确保ID已生成
+        Returns:
+            str: 可见性值
+        """
+        return self.visibility
+    
+    def is_public(self):
+        """判断Agent是否公开可见
         
-    #     # 初始化模型配置
-    #     AgentModelConfig.init_default_models(session, search_agent.key_id)
-    #     AgentModelConfig.init_default_models(session, news_agent.key_id)
+        Returns:
+            bool: 是否公开可见
+        """
+        return self.visibility == 'public'
+    
+    def is_private(self):
+        """判断Agent是否私有
         
-    #     # 初始化提示词
-    #     AgentPrompt.init_default_prompts(session, search_agent.key_id, creator_id, "search")
-    #     AgentPrompt.init_default_prompts(session, news_agent.key_id, creator_id, "news")
+        Returns:
+            bool: 是否私有
+        """
+        return self.visibility == 'private'
+    
+    def is_organization(self):
+        """判断Agent是否组织可见
         
-    #     return [search_agent, news_agent]
+        Returns:
+            bool: 是否组织可见
+        """
+        return self.visibility == 'organization'
+    
+    # 添加获取status状态的接口
+    @classmethod
+    def get_status_options(cls):
+        """获取所有可用的状态选项
+        
+        Returns:
+            list: 状态选项列表
+        """
+        return ['draft', 'published', 'archived']
+    
+    def get_status(self):
+        """获取当前Agent的状态
+        
+        Returns:
+            str: 状态值
+        """
+        return self.status
+    
+    def is_draft(self):
+        """判断Agent是否为草稿状态
+        
+        Returns:
+            bool: 是否为草稿状态
+        """
+        return self.status == 'draft'
+    
+    def is_published(self):
+        """判断Agent是否已发布
+        
+        Returns:
+            bool: 是否已发布
+        """
+        return self.status == 'published'
+    
+    def is_archived(self):
+        """判断Agent是否已归档
+        
+        Returns:
+            bool: 是否已归档
+        """
+        return self.status == 'archived'
+    
     @classmethod
     def init_default_agents(cls, session, user_id):
         """初始化默认Agent"""

@@ -14,6 +14,9 @@ class SearchResult(BaseModel):
     context_link: Optional[str] = None
     date: int = int(time.time())  # 使用时间戳
 
+    class Config:
+        from_attributes = True  # Changed from orm_mode = True
+
     @classmethod
     def from_gpt_response(cls, content):
         """从GPT响应创建搜索结果"""

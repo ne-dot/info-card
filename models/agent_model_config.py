@@ -28,8 +28,16 @@ class ModelConfigUpdate(BaseModel):
     base_api_url: Optional[str] = Field(None, description="模型API基础URL")
     api_key: Optional[str] = Field(None, description="模型API密钥")
 
+    class Config:
+        # Replace orm_mode = True with from_attributes = True
+        from_attributes = True
+
 class ModelConfigResponse(BaseModel):
     """模型配置响应模型"""
     code: int
     message: str
     data: Optional[Dict[str, Any]]
+
+    class Config:
+        # Replace orm_mode = True with from_attributes = True
+        from_attributes = True

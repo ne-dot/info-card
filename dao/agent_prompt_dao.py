@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 from database.agent_prompt import AgentPrompt
 from typing import List, Optional
+import uuid  # 添加uuid模块导入
+import json  # 添加json模块导入
 
 class AgentPromptDAO:
     """Agent提示词数据访问对象"""
@@ -20,7 +22,6 @@ class AgentPromptDAO:
         """
         session = self.db.get_session()
         try:
-            # 移除对is_deleted的过滤，并打印返回的提示词属性以便调试
             prompts = session.query(AgentPrompt).filter(
                 AgentPrompt.agent_id == agent_id
             ).all()
@@ -51,29 +52,35 @@ class AgentPromptDAO:
         """
         return self.session.query(AgentPrompt).filter(
             AgentPrompt.id == prompt_id,
-            AgentPrompt.is_deleted == False
         ).first()
     
-    def create_prompt(self, agent_id: str, content: str, name: str, 
-                     language: str = 'en', user_id: str = None) -> AgentPrompt:
+    def create_prompt(self, agent_id: str, creator_id: str, 
+                     content_zh: str = None, content_en: str = None, 
+                     version: str = "1.0.0", variables: str = None, 
+                     is_production: bool = False) -> AgentPrompt:
         """创建提示词
         
         Args:
             agent_id: Agent ID
-            content: 提示词内容
-            name: 提示词名称
-            language: 语言，默认为英文
-            user_id: 创建者ID
-            
+            creator_id: 创建者ID
+            content_zh: 中文提示词内容
+            content_en: 英文提示词内容
+            version: 版本号，默认为1.0.0
+            variables: 可注入变量配置，JSON格式
+            is_production: 是否生产环境，默认为False
+        
         Returns:
             AgentPrompt: 创建的提示词对象
         """
         prompt = AgentPrompt(
+            id=str(uuid.uuid4()),
             agent_id=agent_id,
-            content=content,
-            name=name,
-            language=language,
-            user_id=user_id
+            creator_id=creator_id,
+            content_zh=content_zh,
+            content_en=content_en,
+            version=version,
+            variables=variables if variables else json.dumps({}),
+            is_production=is_production
         )
         
         self.session.add(prompt)
@@ -81,15 +88,18 @@ class AgentPromptDAO:
         
         return prompt
     
-    def update_prompt(self, prompt_id: str, content: str = None, 
-                     name: str = None, language: str = None) -> Optional[AgentPrompt]:
+    def update_prompt(self, prompt_id: str, content_zh: str = None, 
+                     content_en: str = None, version: str = None,
+                     variables: str = None, is_production: bool = None) -> Optional[AgentPrompt]:
         """更新提示词
         
         Args:
             prompt_id: 提示词ID
-            content: 提示词内容
-            name: 提示词名称
-            language: 语言
+            content_zh: 中文提示词内容
+            content_en: 英文提示词内容
+            version: 版本号
+            variables: 可注入变量配置，JSON格式
+            is_production: 是否生产环境
             
         Returns:
             Optional[AgentPrompt]: 更新后的提示词对象，如果不存在则返回None
@@ -98,34 +108,21 @@ class AgentPromptDAO:
         if not prompt:
             return None
             
-        if content is not None:
-            prompt.content = content
-        if name is not None:
-            prompt.name = name
-        if language is not None:
-            prompt.language = language
+        if content_zh is not None:
+            prompt.content_zh = content_zh
+        if content_en is not None:
+            prompt.content_en = content_en
+        if version is not None:
+            prompt.version = version
+        if variables is not None:
+            prompt.variables = variables
+        if is_production is not None:
+            prompt.is_production = is_production
             
         self.session.flush()
         
         return prompt
     
-    def delete_prompt(self, prompt_id: str) -> bool:
-        """删除提示词（软删除）
-        
-        Args:
-            prompt_id: 提示词ID
-            
-        Returns:
-            bool: 是否成功删除
-        """
-        prompt = self.get_prompt_by_id(prompt_id)
-        if not prompt:
-            return False
-            
-        prompt.is_deleted = True
-        self.session.flush()
-        
-        return True
     
     def get_default_prompt(self, agent_id: str, language: str = 'en') -> Optional[AgentPrompt]:
         """获取Agent的默认提示词
@@ -140,15 +137,13 @@ class AgentPromptDAO:
         # 先尝试获取指定语言的提示词
         prompt = self.session.query(AgentPrompt).filter(
             AgentPrompt.agent_id == agent_id,
-            AgentPrompt.language == language,
-            AgentPrompt.is_deleted == False
+            AgentPrompt.language == language
         ).first()
         
         # 如果没有找到，返回任意语言的第一个提示词
         if not prompt:
             prompt = self.session.query(AgentPrompt).filter(
-                AgentPrompt.agent_id == agent_id,
-                AgentPrompt.is_deleted == False
+                AgentPrompt.agent_id == agent_id
             ).first()
             
         return prompt
