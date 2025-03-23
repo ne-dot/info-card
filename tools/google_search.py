@@ -4,6 +4,7 @@ from config.settings import GOOGLE_API_KEY, GOOGLE_CSE_ID
 import json
 import requests
 from functools import lru_cache
+from typing import List, Dict, Any  # Add this import
 
 logger = setup_logger('google_search')
 
@@ -14,7 +15,17 @@ def get_google_search():
         google_cse_id=GOOGLE_CSE_ID
     )
 
-async def search_google_by_text(query: str):
+async def search_google_by_text(query: str, limit: int = 5) -> List[Dict[str, Any]]:
+    """
+    使用Google搜索文本内容
+    
+    Args:
+        query: 搜索查询
+        limit: 返回结果数量限制，默认为5
+        
+    Returns:
+        List[Dict[str, Any]]: 搜索结果列表
+    """
     try:
         logger.info(f"开始 Google 文本搜索: {query}")
         
@@ -46,7 +57,17 @@ async def search_google_by_text(query: str):
         # 返回空列表而不是抛出异常，确保程序可以继续运行
         return []
 
-async def search_google_by_image(query: str):
+async def search_google_by_image(query: str, limit: int = 5) -> List[Dict[str, Any]]:
+    """
+    使用Google搜索图片内容
+    
+    Args:
+        query: 搜索查询
+        limit: 返回结果数量限制，默认为5
+        
+    Returns:
+        List[Dict[str, Any]]: 搜索结果列表
+    """
     try:
         logger.info(f"开始 Google 图片搜索: {query}")
         logger.info(f"Google API 配置: API_KEY={GOOGLE_API_KEY[:4]}..., CSE_ID={GOOGLE_CSE_ID[:4]}...")

@@ -211,8 +211,14 @@ async def trigger_agent(
         # 获取agent服务
         agent_service = request.app.state.agent_service
         
-        # 调用服务触发Agent
-        result = await agent_service.trigger_agent(agent_id, current_user.user_id)
+        lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
+        
+        # 从请求体中获取query参数
+        body = await request.json()
+        query = body.get('query', None)
+
+        # 调用服务触发Agent，传递query参数
+        result = await agent_service.trigger_agent(agent_id, current_user.user_id, lang, query)
         
         # 返回结果
         return success_response(result)

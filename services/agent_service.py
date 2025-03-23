@@ -31,6 +31,7 @@ class AgentService:
         # 添加 agent_model_config_dao 实例
         from dao.agent_model_config_dao import AgentModelConfigDAO
         self.agent_model_config_dao = AgentModelConfigDAO(db)
+        self.db = db
     
     async def fetch_all_news(self, limit: int) -> tuple[List[NewsItem], List[str]]:
         """获取所有来源的新闻
@@ -472,12 +473,14 @@ class AgentService:
             logger.error(f"配置Agent服务失败: {str(e)}")
             raise Exception(f"配置Agent失败: {str(e)}")
 
-    async def trigger_agent(self, agent_id: str, user_id: str):
+    async def trigger_agent(self, agent_id: str, user_id: str, lang: str, query: str = None):
         """触发指定的Agent，获取AI响应
         
         Args:
             agent_id: Agent的ID
             user_id: 当前用户ID
+            lang: 语言代码
+            query: 查询字符串，可选参数
             
         Returns:
             dict: 包含AI响应和工具调用结果
@@ -523,25 +526,29 @@ class AgentService:
 
             
             # 直接从数据库获取工具关联，而不是使用agent.tools
+            tool_services = {}
             tool_results = {}
             tools = self.agent_dao.get_tools_by_agent_id(agent_id)
             
             if tools and len(tools) > 0:
                 # 使用工厂模式初始化和调用工具服务
                 from services.tool_factory import ToolFactory
-                tool_results = await ToolFactory.create_and_invoke_tools(tools)
+                # 传递数据库连接和查询参数
+                tool_services, tool_results = await ToolFactory.create_and_invoke_tools(tools, query=query, db=self.db)
         
             
             # 获取提示词
             prompt = prompts[0]  # 使用第一个提示词
-            prompt_content = prompt.content_en or prompt.content_zh
+            prompt_content = prompt.content_en if lang == "en" else prompt.content_zh
             
-            # 构建完整提示词，包含工具结果
-            full_prompt = prompt_content
-            if tool_results:
-                full_prompt += "\n\n工具调用结果:\n"
-                for tool_name, result in tool_results.items():
-                    full_prompt += f"\n{tool_name}:\n{result}\n"
+            # 使用ToolFactory的build_tool_prompt方法构建完整提示词和人类消息
+            from services.tool_factory import ToolFactory
+            system_prompt, human_message = ToolFactory.build_tool_prompt(
+                tool_results=tool_results,
+                tool_services=tool_services,
+                base_prompt=prompt_content,
+                lang=lang
+            )
             
             # 创建调用记录 - 正确处理返回的对象
             invocation = self.agent_invocation_dao.create_invocation(
@@ -553,14 +560,15 @@ class AgentService:
             # 从返回的对象中获取ID
             invocation_id = invocation.id if hasattr(invocation, 'id') else str(invocation)
             
-            # 标记开始处理，并保存full_prompt到input_params
-            input_params = {"prompt": full_prompt}
+            # 标记开始处理，并保存system_prompt到input_params
+            input_params = {"prompt": system_prompt}
             self.agent_invocation_dao.start_invocation(invocation_id, input_params=input_params)
             
+            logger.info(f"开始处理Agent {agent_id} 的请求,system_prompt,human_message: {system_prompt},{human_message}")
             # 使用消息列表方式调用AI服务
             messages = [
-                SystemMessage(content=full_prompt),
-                HumanMessage(content="请根据以上信息提供回复")
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=human_message)
             ]
             ai_response = ai_service.invoke(messages)
             
@@ -578,6 +586,17 @@ class AgentService:
                 success=True,
                 metrics=metrics
             )
+
+            # 保存工具调用结果
+            if tool_results and tool_services:
+                await ToolFactory.save_tool_results(
+                    tool_results=tool_results,
+                    tool_services=tool_services,
+                    invocation_id=invocation_id,
+                    result=ai_response,
+                    user_id=user_id
+                )
+                logger.info(f"已保存Agent {agent_id} 的工具调用结果")
             
             # 返回结果
             return {
