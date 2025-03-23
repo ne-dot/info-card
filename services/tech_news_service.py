@@ -52,10 +52,29 @@ class TechNewsService(ToolProtocol):
             # 合并结果
             all_news = wired_news + bbc_news
             
+            # 将NewsItem对象转换为可序列化的字典
+            serializable_news = []
+            for news in all_news:
+                news_dict = {
+                    'title': news.title,
+                    'link': news.link,
+                    'guid': news.guid,
+                    'description': news.description,
+                    'published_date': news.published_date.isoformat() if news.published_date else None,
+                    'source': news.source,
+                    'image_url': news.image_url,
+                    'author': news.author,
+                    'categories': news.categories,
+                    'keywords': news.keywords,
+                    'publisher': news.publisher,
+                    'subject': news.subject
+                }
+                serializable_news.append(news_dict)
+            
             return {
                 'query': query,
-                'news_items': all_news,
-                'total_count': len(all_news)
+                'news_items': serializable_news,
+                'total_count': len(serializable_news)
             }
             
         except Exception as e:
@@ -78,6 +97,7 @@ class TechNewsService(ToolProtocol):
             Tuple[str, str]: 包含(system_prompt, human_message)的元组
         """
         query = data.get('query', '')
+        # 只使用 news_items 字段
         news_items = data.get('news_items', [])
         error = data.get('error', '')
         is_chinese = lang.startswith('zh')
@@ -134,15 +154,27 @@ class TechNewsService(ToolProtocol):
             if not news_items:
                 logger.warning("没有新闻数据可保存")
                 return False
-                
-            # 将新闻数据转换为JSON格式
-            news_items_json = self._format_news_items(news_items)
             
-            # 收集feed_ids（如果有的话）
-            feed_ids = []
+            # 将NewsItem对象转换为可序列化的字典
+            serializable_items = []
             for item in news_items:
-                if hasattr(item, 'feed_id') and item.feed_id and item.feed_id not in feed_ids:
-                    feed_ids.append(item.feed_id)
+                if hasattr(item, '__dict__'):
+                    # 如果是NewsItem对象，转换为字典
+                    item_dict = {}
+                    for key, value in item.__dict__.items():
+                        if key.startswith('_'):
+                            continue  # 跳过私有属性
+                        
+                        # 处理日期类型
+                        if isinstance(value, datetime):
+                            item_dict[key] = value.isoformat()
+                        else:
+                            item_dict[key] = value
+                    
+                    serializable_items.append(item_dict)
+                else:
+                    # 如果已经是字典，直接添加
+                    serializable_items.append(item)
             
             # 保存新闻数据和总结
             self.rss_entry_dao.save_entry(
@@ -152,9 +184,8 @@ class TechNewsService(ToolProtocol):
                 published_date=datetime.now(),
                 source="agent",
                 categories=["tech", "news", "summary"],
-                feed_ids=feed_ids,
                 invocation_id=invocation_id,
-                raw_data=news_items_json,
+                raw_data=serializable_items,  # 使用可序列化的字典列表
                 summary=result
             )
             logger.info("新闻数据和总结已存储")
@@ -168,35 +199,48 @@ class TechNewsService(ToolProtocol):
         """构建新闻文本"""
         news_text = ""
         for i, item in enumerate(news_items, 1):
+            # 检查item是否为字典类型
+            if isinstance(item, dict):
+                # 如果是字典，直接使用键值访问
+                title = item.get('title', '无标题')
+                description = item.get('description', '无描述')
+                categories = item.get('categories', [])
+                source = item.get('source', '未知来源')
+                published_date = item.get('published_date', '')
+                link = item.get('link', '#')
+                
+                # 处理published_date
+                if isinstance(published_date, str) and published_date:
+                    try:
+                        # 尝试将ISO格式的日期字符串转换为datetime对象
+                        published_date = datetime.fromisoformat(published_date).strftime('%Y-%m-%d')
+                    except:
+                        published_date = '未知日期'
+                else:
+                    published_date = '未知日期'
+                
+                # 处理categories
+                if isinstance(categories, list):
+                    categories_str = ', '.join(categories)
+                else:
+                    categories_str = str(categories)
+            else:
+                # 如果是NewsItem对象，使用属性访问
+                title = item.title
+                description = item.description
+                categories_str = ', '.join(item.categories)
+                source = item.source
+                published_date = item.published_date.strftime('%Y-%m-%d')
+                link = item.link
+            
+            # 格式化新闻项
             news_text += news_item_format.format(
                 index=i,
-                title=item.title,
-                description=item.description,
-                categories=', '.join(item.categories),
-                source=item.source,
-                published_date=item.published_date.strftime('%Y-%m-%d'),
-                link=item.link
+                title=title,
+                description=description,
+                categories=categories_str,
+                source=source,
+                published_date=published_date,
+                link=link
             )
         return news_text
-    
-    def _format_news_items(self, news_items: List[NewsItem]) -> str:
-        """将新闻项转换为JSON格式"""
-        items_dict = []
-        for item in news_items:
-            item_dict = {
-                'title': item.title,
-                'link': item.link,
-                'guid': item.guid,
-                'description': item.description,
-                'published_date': item.published_date.isoformat() if item.published_date else None,
-                'source': item.source,
-                'image_url': item.image_url,
-                'author': item.author,
-                'categories': item.categories,
-                'keywords': item.keywords,
-                'publisher': item.publisher,
-                'subject': item.subject
-            }
-            items_dict.append(item_dict)
-        
-        return json.dumps(items_dict, ensure_ascii=False)

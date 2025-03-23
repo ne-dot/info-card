@@ -4,7 +4,7 @@ import uuid
 import enum
 from datetime import datetime
 from .base import Base
-from .rss_entry import entry_feed_association  # 导入中间表
+# from .rss_entry import entry_feed_association  # 导入中间表
 
 
 # 修改RSSFeed类中的关系定义
@@ -27,7 +27,7 @@ class RSSFeed(Base):
     created_at = Column(DateTime(6), default=datetime.now, comment='创建时间')
     
     # 关系 - 修改为使用中间表的多对多关系
-    entries = relationship("RSSEntry", secondary=entry_feed_association, back_populates="feeds")
+    # entries = relationship("RSSEntry", secondary=entry_feed_association, back_populates="feeds")
     
     # 使用AgentRSSFeed作为关联
     feed = relationship("AgentRSSFeed", back_populates="feed")

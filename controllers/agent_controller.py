@@ -220,6 +220,7 @@ async def trigger_agent(
         # 调用服务触发Agent，传递query参数
         result = await agent_service.trigger_agent(agent_id, current_user.user_id, lang, query)
         
+        logger.info(f"Agent触发成功，结果: {result}")
         # 返回结果
         return success_response(result)
     except Exception as e:

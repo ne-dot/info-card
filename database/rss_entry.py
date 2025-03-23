@@ -4,14 +4,6 @@ import uuid
 from datetime import datetime
 from .base import Base
 
-# 创建多对多关系的中间表
-entry_feed_association = Table(
-    'entry_feed_association', 
-    Base.metadata,
-    Column('entry_id', String(36), ForeignKey('rss_entries.id'), primary_key=True),
-    Column('feed_id', String(36), ForeignKey('rss_feeds.id'), primary_key=True)
-)
-
 class RSSEntry(Base):
     """RSS内容条目模型，用于存储RSS源中的具体内容项"""
     __tablename__ = "rss_entries"
@@ -20,7 +12,7 @@ class RSSEntry(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     
     # 移除原来的feed_id字段，改为多对多关系
-    # feed_id = Column(String(36), ForeignKey('rss_feeds.id'), nullable=False)
+    invocation_id = Column(String(36), ForeignKey('agent_invocations.id'), nullable=False)
     
     # 基本信息
     guid = Column(String(512), nullable=False, comment='条目唯一标识')
@@ -37,27 +29,15 @@ class RSSEntry(Base):
     processed_at = Column(DateTime(6), nullable=True, comment='被Agent处理时间')
     created_at = Column(DateTime(6), default=datetime.now, comment='创建时间')
     
-    # 修改关系为多对多
-    feeds = relationship("RSSFeed", secondary=entry_feed_association, back_populates="entries")
-    
-    def __init__(self, guid, title, published_at, content=None, links=None, raw_data=None, feed_ids=None):
+    def __init__(self, guid, title, published_at, invocation_id, content=None, links=None, raw_data=None):
         self.id = str(uuid.uuid4())
+        self.invocation_id = invocation_id
         self.guid = guid
         self.title = title
         self.content = content
         self.published_at = published_at
         self.links = links or {}
         self.raw_data = raw_data or {}
-        # feed_ids将在外部通过关联feeds处理
-    
-    def add_feed(self, feed):
-        """添加关联的feed
-        
-        Args:
-            feed: RSSFeed对象
-        """
-        if feed not in self.feeds:
-            self.feeds.append(feed)
     
     def set_summary(self, summary, processed_at=None):
         """设置AI生成的摘要
@@ -73,7 +53,6 @@ class RSSEntry(Base):
         """将模型转换为字典"""
         return {
             "id": self.id,
-            "feed_ids": [feed.id for feed in self.feeds],
             "guid": self.guid,
             "title": self.title,
             "content": self.content,
