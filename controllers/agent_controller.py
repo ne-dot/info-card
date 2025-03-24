@@ -250,3 +250,30 @@ async def get_agent_tools(
     except Exception as e:
         logger.error(f"获取Agent工具列表失败: {str(e)}")
         return error_response(f"获取Agent工具列表失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
+
+
+@router.get("/agents/{agent_id}/models")
+async def get_agent_models(
+    agent_id: str,
+    request: Request,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """获取指定Agent的大模型配置
+    
+    Args:
+        agent_id: Agent ID
+        
+    Returns:
+        模型配置
+    """
+    try:
+        # 获取agent服务
+        agent_service = request.app.state.agent_service
+        
+        # 调用服务获取Agent模型配置
+        result = await agent_service.get_agent_model(agent_id)
+        
+        return success_response(result)
+    except Exception as e:
+        logger.error(f"获取Agent模型配置失败: {str(e)}")
+        return error_response(f"获取Agent模型配置失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)

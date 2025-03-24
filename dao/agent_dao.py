@@ -185,21 +185,6 @@ class AgentDAO:
         finally:
             session.close()
     
-    def get_agent_model_configs(self, agent_id: str) -> List[AgentModelConfig]:
-        """获取Agent的模型配置"""
-        session = self.db.get_session()
-        try:
-            configs = session.query(AgentModelConfig).filter(
-                AgentModelConfig.agent_id == agent_id,
-                AgentModelConfig.is_enabled == True
-            ).all()
-            return configs
-        except Exception as e:
-            logger.error(f"获取Agent模型配置失败: {str(e)}")
-            raise e
-        finally:
-            session.close()
-    
     def get_all_agents(self, user_id: str, page: int = 1, page_size: int = 10) -> tuple:
         """获取所有Agent，支持分页
         
@@ -358,3 +343,6 @@ class AgentDAO:
             return []
         finally:
             session.close()
+
+
+         

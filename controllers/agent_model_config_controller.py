@@ -81,7 +81,7 @@ async def delete_model_config(config_id: str, current_user = Depends(get_current
         logger.error(f"删除模型配置失败: {str(e)}")
         return error_response(f"删除模型配置失败: {str(e)}")
 
-@router.get("/", response_model=Dict)
+@router.get("", response_model=Dict)
 async def get_all_model_configs(
     page: int = 1, 
     page_size: int = 10,

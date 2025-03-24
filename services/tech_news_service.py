@@ -102,21 +102,9 @@ class TechNewsService(ToolProtocol):
         error = data.get('error', '')
         is_chinese = lang.startswith('zh')
         
-        if error:
-            system_prompt = error
-            human_message = "获取新闻失败，请稍后再试。" if is_chinese else "Failed to get news, please try again later."
-            return system_prompt, human_message
-        
-        if not news_items:
-            system_prompt = "未找到新闻" if is_chinese else "No news found"
-            human_message = "未找到相关新闻，请稍后再试。" if is_chinese else "No relevant news found, please try again later."
-            return system_prompt, human_message
-        
         # 使用提供的提示词或默认提示词
         prompt_template = prompt
-        if not prompt_template:
-            prompt_template = "请总结以下科技新闻的要点，并分析其中的技术趋势。" if is_chinese else "Please summarize the key points of the following tech news and analyze the technology trends."
-        
+       
         # 构建新闻文本
         news_item_format = get_text("news.news_item_format", lang)
         news_text = self._build_news_text(news_items, news_item_format)

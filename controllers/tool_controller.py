@@ -66,7 +66,7 @@ async def get_tool(tool_id: str, current_user = Depends(get_current_user)):
         logger.error(f"获取工具失败: {str(e)}")
         return error_response(f"获取工具失败: {str(e)}")
 
-@router.get("/", response_model=List[ToolResponse])
+@router.get("", response_model=List[ToolResponse])
 async def get_all_tools(
     current_user = Depends(get_current_user),
     page: int = 1,

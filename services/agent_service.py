@@ -417,3 +417,64 @@ class AgentService:
                 logger.error(f"记录失败调用时出错: {str(inner_e)}")
             
             raise Exception(f"触发Agent失败: {str(e)}")
+
+    async def get_agent_model(self, agent_id: str):
+        """获取Agent的模型配置
+        
+        Args:
+            agent_id: Agent ID
+            
+        Returns:
+            dict: 模型配置信息
+        """
+        try:
+            # 使用DAO层方法获取Agent和关联的模型配置
+            session = self.db.get_session()
+            
+            # 在会话中获取Agent和模型配置
+            from database.agent import Agent
+            from database.agent_model_config import AgentModelConfig
+            
+            # 使用join查询一次性获取Agent和关联的模型配置
+            agent_with_model = session.query(Agent, AgentModelConfig).join(
+                AgentModelConfig, 
+                Agent.model_config_id == AgentModelConfig.id, 
+                isouter=True
+            ).filter(Agent.key_id == agent_id).first()
+            
+            if not agent_with_model:
+                return {
+                    "model": None,
+                    "message": "找不到该Agent"
+                }
+            
+            agent, model_config = agent_with_model
+            
+            if not model_config:
+                return {
+                    "model": None,
+                    "message": "该Agent未配置模型"
+                }
+            
+            # 转换为可序列化的字典，只包含模型配置实际存在的属性
+            model_dict = {
+                "id": model_config.id,
+                "agent_id": agent_id,
+                "model_name": model_config.model_name,
+            }
+            
+            # 有条件地添加其他属性
+            for attr in ["temperature", "max_tokens", "top_p", "frequency_penalty", 
+                        "presence_penalty", "is_default", "created_at", "updated_at"]:
+                if hasattr(model_config, attr):
+                    model_dict[attr] = getattr(model_config, attr)
+            
+            return {
+                "model": model_dict
+            }
+        except Exception as e:
+            logger.error(f"获取Agent模型配置失败: {str(e)}")
+            raise Exception(f"获取Agent模型配置失败: {str(e)}")
+        finally:
+            if 'session' in locals():
+                session.close()
