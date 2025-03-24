@@ -7,8 +7,6 @@ from models.user import UserResponse
 import json
 from database.agent import Agent
 from config.prompts.search_prompts import SEARCH_PROMPT_EN, SEARCH_PROMPT_ZH
-# 删除不需要的导入
-# from config.prompts.news_prompts import BASE_PROMPT_EN, BASE_PROMPT_ZH
 import uuid
 import time
 from sqlalchemy.orm import Session
@@ -205,3 +203,50 @@ async def trigger_agent(
     except Exception as e:
         logger.error(f"触发Agent失败: {str(e)}")
         return error_response(f"触发Agent失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
+
+@router.get("/agents/{agent_id}/tools")
+async def get_agent_tools(
+    agent_id: str,
+    request: Request,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """获取指定Agent的工具列表
+    
+    Args:
+        agent_id: Agent ID
+        
+    Returns:
+        工具列表
+    """
+    try:
+        # 获取工具列表
+        tools = agent_dao.get_tools_by_agent_id(agent_id)
+        
+        if not tools:
+            return success_response({
+                "tools": [],
+                "message": "该Agent未配置任何工具"
+            })
+        
+        # 转换为可序列化的字典
+        tool_list = []
+        for tool in tools:
+            tool_dict = {
+                "id": tool.id,
+                "name": tool.name,
+                "description": tool.description,
+                "tool_type": tool.tool_type,
+                "endpoint": tool.endpoint,
+                "is_enabled": tool.is_enabled,
+                "config_params": tool.config_params,
+                "created_at": tool.created_at,
+                "updated_at": tool.updated_at
+            }
+            tool_list.append(tool_dict)
+        
+        return success_response({
+            "tools": tool_list
+        })
+    except Exception as e:
+        logger.error(f"获取Agent工具列表失败: {str(e)}")
+        return error_response(f"获取Agent工具列表失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
