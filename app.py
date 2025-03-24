@@ -3,8 +3,6 @@ from fastapi import FastAPI
 import uvicorn
 from services.search_service import SearchService
 from services.user_service import UserService
-from services.wired_news_service import WireNewsService
-from services.bbc_news_service import BBCNewsService
 from services.deepseek_service import DeepSeekService
 from services.tool_service import ToolService
 from services.agent_model_config_service import AgentModelConfigService
@@ -36,10 +34,8 @@ async def lifespan(app):
     user_service = UserService(db)
     
     # 初始化新闻服务
-    wired_service = WireNewsService(db)
-    bbc_service = BBCNewsService(db)
     chat_service = DeepSeekService()
-    agent_service = AgentService(wired_service, bbc_service, chat_service, db)
+    agent_service = AgentService(db)
     tool_service = ToolService(db)
     app.state.tool_service = tool_service
     model_config_service = AgentModelConfigService(db)

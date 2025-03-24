@@ -7,7 +7,8 @@ from models.user import UserResponse
 import json
 from database.agent import Agent
 from config.prompts.search_prompts import SEARCH_PROMPT_EN, SEARCH_PROMPT_ZH
-from config.prompts.news_prompts import BASE_PROMPT_EN, BASE_PROMPT_ZH
+# 删除不需要的导入
+# from config.prompts.news_prompts import BASE_PROMPT_EN, BASE_PROMPT_ZH
 import uuid
 import time
 from sqlalchemy.orm import Session
@@ -45,29 +46,7 @@ async def create_agent(
         logger.error(f"创建Agent失败: {str(e)}")
         return error_response(f"创建Agent失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
 
-
-@router.post("/agents/trigger/news")
-async def trigger_news_agent(
-    request: Request,
-    current_user: UserResponse = Depends(get_current_user)
-):
-    """触发科技新闻Agent，获取最新科技新闻总结"""
-    try:
-        # 将当前用户信息添加到请求状态中
-        request.state.user = current_user
-        
-        # 获取agent服务
-        agent_service = request.app.state.agent_service
-        
-        # 调用agent服务生成新闻总结
-        result = await agent_service.generate_tech_news_summary(request, limit=10, user_id=current_user.user_id)
-        
-        # 返回结果
-        return success_response(result)
-    except Exception as e:
-        logger.error(f"触发新闻Agent失败: {str(e)}")
-        return error_response(f"触发新闻Agent失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
-
+# 删除 trigger_news_agent 函数
 
 @router.get("/agents/visibility/options")
 async def get_visibility_options(
