@@ -149,7 +149,7 @@ class ToolFactory:
             return False
     
     @staticmethod
-    def build_tool_prompt(tool_results: Dict[str, Any], tool_services: Dict[str, Any], base_prompt: str, lang: str = 'zh') -> Tuple[str, str]:
+    def build_tool_prompt(tool_results: Dict[str, Any], tool_services: Dict[str, Any], base_prompt: str, lang: str = 'zh', query: str = None) -> Tuple[str, str]:
         """
         构建包含工具结果的完整提示词
         
@@ -158,14 +158,20 @@ class ToolFactory:
             tool_services: 工具服务实例字典
             base_prompt: 基础提示词
             lang: 语言，默认为中文
+            query: 用户查询，默认为None
             
         Returns:
             Tuple[str, str]: 包含(system_prompt, human_message)的元组
         """
-        # 如果没有工具结果，直接返回基础提示词和默认人类消息
+        # 如果没有工具结果，直接返回基础提示词和包含查询的人类消息
         if not tool_results or not tool_services:
-            default_human_message = "请根据以上信息提供回复" if lang.startswith('zh') else "Please provide a response based on the information above"
-            return base_prompt, default_human_message
+            if query:
+                # 根据语言构建包含查询的人类消息
+                human_message = f"我的问题是：{query}" if lang.startswith('zh') else f"My question is: {query}"
+                return base_prompt, human_message
+            else:
+                default_human_message = "请根据以上信息提供回复" if lang.startswith('zh') else "Please provide a response based on the information above"
+                return base_prompt, default_human_message
         
         # 初始化系统提示词为基础提示词
         system_prompt = base_prompt

@@ -95,7 +95,6 @@ async def update_agent(
     try:
         # 获取agent服务
         agent_service = request.app.state.agent_service
-        logger.info(f"更新Agent信息，Agent ID: {agent_id}, Agent数据: {agent_data}")
         # 调用服务更新Agent
         result = await agent_service.update_agent(agent_id, agent_data, current_user.user_id)
         
@@ -117,6 +116,8 @@ async def config_agent(
     try:
         # 获取agent服务
         agent_service = request.app.state.agent_service
+
+        logger.info(f"更新Agent信息，Agent ID: {agent_id}, Agent数据: {config_data}")
         
         # 调用服务配置Agent
         result = await agent_service.config_agent(

@@ -329,8 +329,13 @@ class AgentService:
                 tool_results=tool_results,
                 tool_services=tool_services,
                 base_prompt=prompt_content,
-                lang=lang
+                lang=lang,
+                query=query
             )
+
+            logger.info(f"===================================")
+            logger.info(f"构建的提示词和人类消息: {system_prompt}, {human_message}")
+            logger.info(f"===================================")
             
             # 创建调用记录 - 正确处理返回的对象
             invocation = self.agent_invocation_dao.create_invocation(
