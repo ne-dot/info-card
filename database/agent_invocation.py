@@ -72,3 +72,23 @@ class AgentInvocation(Base):
             if not self.error_logs:
                 self.error_logs = {}
             self.error_logs['message'] = str(error)
+    
+    def to_dict(self):
+        """将对象转换为字典"""
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "agent_id": self.agent_id,
+            "session_id": self.session_id,
+            "input_text": self.input_text,
+            "status": self.status,
+            "created_at": self.created_at,
+            "timestamps": self.timestamps,
+            "metrics": self.metrics,
+            "error_logs": self.error_logs
+        }
+    
+    @classmethod
+    def get_status_options(cls):
+        """获取所有可用的状态选项"""
+        return ['pending', 'processing', 'success', 'failed']

@@ -180,3 +180,67 @@ class AgentInvocationDAO:
             raise e
         finally:
             session.close()
+
+    def get_all_invocations(self, page=1, page_size=10, user_id=None, agent_id=None, status=None):
+        """获取所有调用记录列表
+        
+        Args:
+            page: 页码，默认为1
+            page_size: 每页数量，默认为10
+            user_id: 用户ID，如果提供则只返回该用户的记录
+            agent_id: 根据Agent ID过滤，可选
+            status: 根据状态过滤，可选
+            
+        Returns:
+            tuple: (记录列表, 总数)
+        """
+        try:
+            session = self.db.get_session()
+            from database.agent_invocation import AgentInvocation
+            
+            query = session.query(AgentInvocation)
+            
+            # 应用过滤条件
+            if user_id:
+                query = query.filter(AgentInvocation.user_id == user_id)
+            
+            if agent_id:
+                query = query.filter(AgentInvocation.agent_id == agent_id)
+                
+            if status:
+                query = query.filter(AgentInvocation.status == status)
+            
+            # 获取总数
+            total = query.count()
+            
+            # 分页
+            offset = (page - 1) * page_size
+            invocations = query.order_by(AgentInvocation.created_at.desc()).offset(offset).limit(page_size).all()
+            
+            return invocations, total
+        except Exception as e:
+            logger.error(f"获取所有调用记录列表失败: {str(e)}")
+            return [], 0
+        finally:
+            if 'session' in locals():
+                session.close()
+    
+    def get_invocation_by_id(self, invocation_id):
+        """获取指定ID的调用记录详情
+        
+        Args:
+            invocation_id: 调用记录ID
+            
+        Returns:
+            AgentInvocation: 调用记录对象
+        """
+        try:
+            session = self.db.get_session()
+            invocation = session.query(AgentInvocation).filter(AgentInvocation.id == invocation_id).first()
+            return invocation
+        except Exception as e:
+            logger.error(f"获取调用记录详情失败: {str(e)}")
+            return None
+        finally:
+            if 'session' in locals():
+                session.close()

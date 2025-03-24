@@ -18,6 +18,7 @@ from utils.i18n_utils import get_text
 from utils.i18n_utils import load_translations
 from services.agent_service import AgentService
 from controllers import agent_prompt_controller
+from controllers import invocation_controller
 
 logger = setup_logger('app')
 
@@ -38,13 +39,13 @@ async def lifespan(app):
     chat_service = DeepSeekService()
     agent_service = AgentService(db)
     tool_service = ToolService(db)
-    app.state.tool_service = tool_service
     model_config_service = AgentModelConfigService(db)
 
     # 将服务实例存储到应用状态中
     app.state.search_service = search_service
     app.state.user_service = user_service
     app.state.agent_service = agent_service
+    app.state.tool_service = tool_service
     
     # 初始化控制器
     search_controller.init_controller(search_service)
@@ -53,6 +54,7 @@ async def lifespan(app):
     tool_controller.init_controller(tool_service)
     agent_model_config_controller.init_controller(model_config_service)
     agent_prompt_controller.init_controller(db)
+    invocation_controller.init_controller(db)
     logger.info("应用程序初始化完成")
     
     yield
@@ -85,6 +87,7 @@ app.include_router(user_controller.router, prefix="/api/users", tags=["用户"])
 app.include_router(agent_controller.router, prefix="/api", tags=["Agent"])  # 注册Agent路由
 app.include_router(tool_controller.router, prefix="/api/tools", tags=["工具"])
 app.include_router(agent_model_config_controller.router, prefix="/api/model-configs", tags=["模型配置"])
+app.include_router(invocation_controller.router, prefix="/api/invocations", tags=["Agent记录"])
 
 @app.get("/")
 async def root():
