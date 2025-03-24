@@ -95,7 +95,7 @@ async def update_agent(
     try:
         # 获取agent服务
         agent_service = request.app.state.agent_service
-        
+        logger.info(f"更新Agent信息，Agent ID: {agent_id}, Agent数据: {agent_data}")
         # 调用服务更新Agent
         result = await agent_service.update_agent(agent_id, agent_data, current_user.user_id)
         
@@ -251,6 +251,32 @@ async def get_agent_tools(
         logger.error(f"获取Agent工具列表失败: {str(e)}")
         return error_response(f"获取Agent工具列表失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
 
+
+@router.get("/agents/{agent_id}")
+async def get_agent_detail(
+    agent_id: str,
+    request: Request,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """获取指定Agent的详细信息
+    
+    Args:
+        agent_id: Agent ID
+        
+    Returns:
+        Agent详细信息
+    """
+    try:
+        # 获取agent服务
+        agent_service = request.app.state.agent_service
+        
+        # 调用服务获取Agent详情
+        result = await agent_service.get_agent_detail(agent_id, current_user.user_id)
+        
+        return success_response(result)
+    except Exception as e:
+        logger.error(f"获取Agent详情失败: {str(e)}")
+        return error_response(f"获取Agent详情失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
 
 @router.get("/agents/{agent_id}/models")
 async def get_agent_models(

@@ -478,3 +478,55 @@ class AgentService:
         finally:
             if 'session' in locals():
                 session.close()
+
+    async def get_agent_detail(self, agent_id: str, user_id: str):
+        """获取Agent的详细信息
+        
+        Args:
+            agent_id: Agent ID
+            user_id: 当前用户ID
+        
+        Returns:
+            dict: Agent详细信息
+        """
+        try:
+            # 获取Agent对象
+            agent = self.agent_dao.get_agent_by_key_id(agent_id)
+            
+            if not agent:
+                raise Exception(f"找不到ID为{agent_id}的Agent")
+            
+            # 检查权限
+            if not agent.check_user_access(user_id):
+                raise Exception("您没有权限查看此Agent")
+            
+            # 转换为可序列化的字典
+            agent_dict = {
+                "id": agent.key_id,
+                "name": agent.name,
+                "name_en": agent.name_en,
+                "name_zh": agent.name_zh,
+                "description": agent.description,
+                "type": agent.type,
+                "visibility": agent.visibility,
+                "status": agent.status,
+                "pricing": agent.pricing,
+                "create_date": agent.create_date,
+                "update_date": agent.update_date,
+                "trigger_date": agent.trigger_date,
+                "user_id": agent.user_id
+            }
+            
+            # 获取模型配置
+            if agent.model_config_id:
+                model_result = await self.get_agent_model(agent_id)
+                agent_dict["model"] = model_result.get("model")
+            else:
+                agent_dict["model"] = None
+            
+            return {
+                "agent": agent_dict
+            }
+        except Exception as e:
+            logger.error(f"获取Agent详情失败: {str(e)}")
+            raise Exception(f"获取Agent详情失败: {str(e)}")
