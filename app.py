@@ -17,6 +17,7 @@ from middleware.i18n_middleware import I18nMiddleware
 from utils.i18n_utils import get_text
 from utils.i18n_utils import load_translations
 from services.agent_service import AgentService
+from controllers import agent_prompt_controller
 
 logger = setup_logger('app')
 
@@ -51,6 +52,7 @@ async def lifespan(app):
     agent_controller.init_controller(db)  # 初始化Agent控制器
     tool_controller.init_controller(tool_service)
     agent_model_config_controller.init_controller(model_config_service)
+    agent_prompt_controller.init_controller(db)
     logger.info("应用程序初始化完成")
     
     yield
@@ -77,7 +79,7 @@ app.middleware("http")(auth_middleware)
 app.add_middleware(I18nMiddleware)
 
 # 注册路由
-
+app.include_router(agent_prompt_controller.router, prefix="/api")
 app.include_router(search_controller.router, prefix="/api", tags=["搜索"])
 app.include_router(user_controller.router, prefix="/api/users", tags=["用户"])
 app.include_router(agent_controller.router, prefix="/api", tags=["Agent"])  # 注册Agent路由
