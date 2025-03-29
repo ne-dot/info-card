@@ -63,42 +63,51 @@ async def search(query: SearchQuery, request: Request):
                     anonymous_id = None
             except Exception as e:
                 logger.warning(f"解析token失败: {str(e)}")
+                user_id = anonymous_id
                 # 继续执行，不返回错误，因为搜索不需要强制认证
                 # 此时会使用请求头中的匿名ID（如果有）
+        else:
+            # 如果没有token，使用匿名ID
+            user_id = anonymous_id
+
+        logger.info(f"用户ID: {user_id}")
+        logger.info(f"匿名ID: {anonymous_id}")  
+        # 检查user_id是否存在，如果不存在则返回错误
+        if not user_id:
+            return error_response("未提供有效的用户ID", ErrorCode.UNAUTHORIZED)
+            
+        # 获取agent服务
+        agent_service = request.app.state.agent_service
         
+        # 获取语言设置
         lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
-        results = await search_service.search_and_respond(
-            query.query, 
-            lang, 
-            user_id=user_id, 
-            anonymous_id=anonymous_id
-        )
         
-        # 分离 GPT 和 Google 结果
-        gpt_result = next((r for r in results if r.source == "gpt"), None)  # 使用 == 而不是 is
-        google_results = [r for r in results if r.source == "google_image"]  # 使用 == 而不是 is
+        # 从agent表中查询name=AI搜索的agent
+        agent = agent_service.agent_dao.get_agent_by_name("AI搜索")
+        if not agent:
+            return error_response("未找到AI搜索Agent", ErrorCode.SEARCH_FAILED)
         
-        if not gpt_result:
-            return error_response("未找到GPT结果", ErrorCode.SEARCH_FAILED)
+        # 触发这个agent，传递query参数
+        result = await agent_service.trigger_agent(agent.key_id, user_id, lang, query.query)
         
-        # 创建响应数据字典，而不是直接使用 SearchResponse 对象
+        # 处理返回结果
+        if not result or "error" in result:
+            error_msg = result.get("error", "搜索失败") if result else "搜索失败"
+            return error_response(error_msg, ErrorCode.SEARCH_FAILED)
+        
+        # 构建响应数据
+        # 从嵌套结构中提取google_search的text_results
+        google_results = []
+        if "tool_results" in result and isinstance(result["tool_results"], dict):
+            tool_results = result["tool_results"]
+            if "google_search" in tool_results and isinstance(tool_results["google_search"], dict):
+                google_search = tool_results["google_search"]
+                if "image_results" in google_search and isinstance(google_search["image_results"], list):
+                    google_results = google_search["image_results"]
+        
         search_results_dict = {
-            "gpt_summary": {
-                "id": str(gpt_result.key_id),
-                "title": gpt_result.title,
-                "content": gpt_result.content,
-                "date": gpt_result.date
-            },
-            "google_results": [{
-                "id": str(r.key_id),
-                "title": r.title,
-                "snippet": r.snippet,
-                "link": r.link,
-                "content_link": getattr(r, 'context_link', r.link),
-                "thumbnailLink": getattr(r, 'thumbnail_link', None),
-                "type": getattr(r, 'type', 'text'),
-                "date": r.date
-            } for r in google_results]
+            "gpt_summary": result.get("ai_response", {}),
+            "google_results": google_results
         }
 
         return success_response(search_results_dict)

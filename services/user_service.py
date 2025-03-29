@@ -239,7 +239,7 @@ class UserService:
             # 返回用户信息和令牌
             return {
                 "user": user.dict(),
-                "anonymous_id": anonymous_id  # 返回匿名ID，用于后续转换
+                "anonymous_id": user.user_id  # 修改为 user_id 而不是 id
             }, None, None
             
         except Exception as e:

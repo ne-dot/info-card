@@ -343,6 +343,26 @@ class AgentDAO:
             return []
         finally:
             session.close()
+    
+    def get_agent_by_name(self, name):
+        """根据名称获取Agent
+        
+        Args:
+            name: Agent名称
+            
+        Returns:
+            Agent对象，如果未找到则返回None
+        """
+        try:
+            session = self.db.get_session()
+            agent = session.query(Agent).filter(Agent.name == name).first()
+            return agent
+        except Exception as e:
+            logger.error(f"根据名称获取Agent失败: {str(e)}")
+            return None
+        finally:
+            if 'session' in locals():
+                session.close()
 
 
          

@@ -83,7 +83,7 @@ class Agent(Base):
             bool: 用户是否有权限访问
         """
         # search类型的agent不需要订阅，直接返回True
-        if self.type == "search":
+        if self.name == "AI搜索":
             return True
             
         # 创建者可以访问自己创建的agent

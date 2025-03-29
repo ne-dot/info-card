@@ -1,15 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from dao.agent_dao import AgentDAO
 from utils.logger import setup_logger
 from utils.response_utils import success_response, error_response, ErrorCode
 from dependencies.auth import get_current_user  # 导入依赖项
 from models.user import UserResponse
-import json
 from database.agent import Agent
 from config.prompts.search_prompts import SEARCH_PROMPT_EN, SEARCH_PROMPT_ZH
-import uuid
-import time
-from sqlalchemy.orm import Session
 from models.agent import AgentCreateRequest, AgentConfigRequest  # 导入新的请求模型
 
 logger = setup_logger('agent_controller')
