@@ -28,6 +28,7 @@ class AgentInvocation(Base):
     # user = relationship("UserModel", back_populates="invocations")
     agent = relationship("Agent", back_populates="invocations")
     summary = relationship("AISummary", back_populates="invocation", uselist=False, cascade="all, delete-orphan")
+    # 恢复这个关系定义
     search_data = relationship("SearchRawData", back_populates="invocation", cascade="all, delete-orphan")
     
     def __repr__(self):

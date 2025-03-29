@@ -1,9 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import uvicorn
-from services.search_service import SearchService
 from services.user_service import UserService
-from services.deepseek_service import DeepSeekService
 from services.tool_service import ToolService
 from services.agent_model_config_service import AgentModelConfigService
 from controllers import search_controller, user_controller, agent_controller, tool_controller, agent_model_config_controller
@@ -32,23 +30,19 @@ async def lifespan(app):
     db.init_database()
     
     # 初始化服务
-    search_service = SearchService(db)
     user_service = UserService(db)
     
     # 初始化新闻服务
-    chat_service = DeepSeekService()
     agent_service = AgentService(db)
     tool_service = ToolService(db)
     model_config_service = AgentModelConfigService(db)
 
     # 将服务实例存储到应用状态中
-    app.state.search_service = search_service
     app.state.user_service = user_service
     app.state.agent_service = agent_service
     app.state.tool_service = tool_service
     
     # 初始化控制器
-    search_controller.init_controller(search_service)
     user_controller.init_controller(user_service)
     agent_controller.init_controller(db)  # 初始化Agent控制器
     tool_controller.init_controller(tool_service)

@@ -1,13 +1,17 @@
-# 确保导入顺序正确
+# 导入所有数据库模型
 from .base import Base
-# 先导入不依赖其他模型的基础模型
+from .agent import Agent
+from .agent_invocation import AgentInvocation
+from .ai_summary import AISummary
+# 修正导入路径
+from .search_raw_data import SearchRawData  # 假设文件名是 search_raw_data.py
 from .rss_feed import RSSFeed
 from .rss_entry import RSSEntry
 from .agent_rss_feed import AgentRSSFeed
 from .user_models import UserModel, UserExternalAuth
-from .agent import Agent
 from .agent_model_config import AgentModelConfig
 from .agent_prompt import AgentPrompt
+
 # 确保所有模型都被注册
 __all__ = [
     'Base',
@@ -19,5 +23,7 @@ __all__ = [
     'Agent',
     'AgentModelConfig',
     'AgentPrompt',
-    'RSSFeed'
+    'AgentInvocation',
+    'AISummary',
+    'SearchRawData'  # 添加回来
 ]

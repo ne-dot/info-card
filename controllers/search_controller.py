@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel, validator
 from typing import List, Optional
-from services.search_service import SearchService
 from tools.google_search import search_google_by_text  
 from utils.response_utils import success_response, error_response, ErrorCode
 from utils.logger import setup_logger
@@ -14,7 +13,6 @@ logger = setup_logger('search_controller')
 
 # 添加标记，表示这个路由不需要认证
 router = APIRouter(tags=["搜索"], include_in_schema=True)
-search_service = None
 
 class SearchQuery(BaseModel):
     query: str
@@ -37,10 +35,6 @@ class SearchQuery(BaseModel):
 class SearchResponse(BaseModel):
     gpt_summary: dict
     google_results: List[dict]
-
-def init_controller(service: SearchService):
-    global search_service
-    search_service = service
 
 @router.post("/search", response_model=SearchResponse)
 async def search(query: SearchQuery, request: Request):
