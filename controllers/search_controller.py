@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, validator
 from typing import List, Optional
+import json
 from tools.google_search import search_google_by_text  
 from utils.response_utils import success_response, error_response, ErrorCode
 from utils.logger import setup_logger
@@ -81,30 +83,76 @@ async def search(query: SearchQuery, request: Request):
         if not agent:
             return error_response("未找到AI搜索Agent", ErrorCode.SEARCH_FAILED)
         
-        # 触发这个agent，传递query参数
-        result = await agent_service.trigger_agent(agent.key_id, user_id, lang, query.query)
+        # 创建一个异步生成器来处理流式响应
+        async def sse_generator():
+            google_results = []
+            
+            # 发送初始事件
+            yield f"data: {json.dumps({'event': 'start', 'data': {'query': query.query}})}\n\n"
+            
+            try:
+                # 触发这个agent，传递query参数，但不启用流式响应
+                result = await agent_service.trigger_agent(
+                    agent_id=agent.key_id, 
+                    user_id=user_id, 
+                    lang=lang, 
+                    query=query.query,
+                    stream=False  # 暂时使用非流式响应
+                )
+                
+                # 检查结果
+                if not result or "error" in result:
+                    error_msg = result.get("error", "搜索失败") if result else "搜索失败"
+                    yield f"data: {json.dumps({'event': 'error', 'data': {'error': error_msg}})}\n\n"
+                    return
+                
+                # 获取AI响应
+                ai_response = result.get("ai_response", "")
+                
+                # 模拟流式返回AI响应（每个字符作为一个块）
+                # 实际应用中可以按句子或段落分割
+                for i in range(0, len(ai_response), 10):  # 每10个字符一个块
+                    chunk = ai_response[i:i+10]
+                    yield f"data: {json.dumps({'event': 'chunk', 'data': {'content': chunk}})}\n\n"
+                    # 可以添加一个小延迟来模拟真实的流式效果
+                    # await asyncio.sleep(0.05)
+                
+                # 获取Google搜索结果
+                if "tool_results" in result and isinstance(result["tool_results"], dict):
+                    tool_results = result["tool_results"]
+                    if "google_search" in tool_results and isinstance(tool_results["google_search"], dict):
+                        google_search = tool_results["google_search"]
+                        if "image_results" in google_search and isinstance(google_search["image_results"], list):
+                            google_results = google_search["image_results"]
+                
+                # 发送Google搜索结果
+                yield f"data: {json.dumps({'event': 'google_results', 'data': {'results': google_results}})}\n\n"
+                
+                # 发送结束事件
+                yield f"data: {json.dumps({'event': 'end', 'data': {'invocation_id': result.get('invocation_id', ''), 'full_response': ai_response}})}\n\n"
+            
+            except Exception as e:
+                logger.error(f"流式处理过程中出错: {str(e)}")
+                yield f"data: {json.dumps({'event': 'error', 'data': {'error': str(e)}})}\n\n"
         
-        # 处理返回结果
-        if not result or "error" in result:
-            error_msg = result.get("error", "搜索失败") if result else "搜索失败"
-            return error_response(error_msg, ErrorCode.SEARCH_FAILED)
-        
-        # 构建响应数据
-        # 从嵌套结构中提取google_search的text_results
-        google_results = []
-        if "tool_results" in result and isinstance(result["tool_results"], dict):
-            tool_results = result["tool_results"]
-            if "google_search" in tool_results and isinstance(tool_results["google_search"], dict):
-                google_search = tool_results["google_search"]
-                if "image_results" in google_search and isinstance(google_search["image_results"], list):
-                    google_results = google_search["image_results"]
-        
-        search_results_dict = {
-            "gpt_summary": result.get("ai_response", {}),
-            "google_results": google_results
-        }
-
-        return success_response(search_results_dict)
+        # 返回流式响应
+        return StreamingResponse(
+            sse_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"  # 禁用Nginx缓冲
+            }
+        )
+    
     except Exception as e:
         logger.error(f"搜索失败: {str(e)}")
-        return error_response(f"搜索失败: {str(e)}", ErrorCode.SEARCH_FAILED)
+        # 对于流式响应的错误，返回一个流式错误响应
+        async def error_generator():
+            yield f"data: {json.dumps({'event': 'error', 'data': {'error': str(e)}})}\n\n"
+        
+        return StreamingResponse(
+            error_generator(),
+            media_type="text/event-stream"
+        )

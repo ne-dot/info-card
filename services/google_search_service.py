@@ -124,13 +124,19 @@ class GoogleSearchService(ToolProtocol):
                     "result_items": text_results  # 保存完整的结果项
                 }
                 
+                # 确保数据是JSON格式
+                request_json = {"query": query}
+                response_json = text_results
+                structured_json = text_structured_data
+                
+                # 使用正确的字段名和JSON数据
                 self.search_raw_dao.create_search_data(
                     invocation_id=invocation_id,
                     engine_type="google",
                     content_type="text",
-                    request_data={"query": query},
-                    response_data=text_results,
-                    structured_data=text_structured_data
+                    request_data=request_json,  # 使用JSON对象
+                    response_data=response_json,  # 使用JSON对象
+                    structured_data=structured_json  # 使用JSON对象
                 )
                 logger.info(f"已保存 {len(text_results)} 条文本搜索结果")
             
@@ -142,13 +148,19 @@ class GoogleSearchService(ToolProtocol):
                     "result_items": image_results  # 保存完整的结果项
                 }
                 
+                # 确保数据是JSON格式
+                request_json = {"query": query}
+                response_json = image_results
+                structured_json = image_structured_data
+                
+                # 使用正确的字段名和JSON数据
                 self.search_raw_dao.create_search_data(
                     invocation_id=invocation_id,
                     engine_type="google",
                     content_type="image",
-                    request_data={"query": query},
-                    response_data=image_results,
-                    structured_data=image_structured_data
+                    request_data=request_json,  # 使用JSON对象
+                    response_data=response_json,  # 使用JSON对象
+                    structured_data=structured_json  # 使用JSON对象
                 )
                 logger.info(f"已保存 {len(image_results)} 条图片搜索结果")
             
@@ -180,6 +192,9 @@ class GoogleSearchService(ToolProtocol):
             
         except Exception as e:
             logger.error(f"保存搜索数据失败: {str(e)}")
+            # 打印更详细的错误信息
+            import traceback
+            logger.error(f"详细错误: {traceback.format_exc()}")
             return False
     
     def _build_search_summary(self, text_results, image_results, error, lang):

@@ -254,7 +254,7 @@ class AgentService:
             logger.error(f"配置Agent服务失败: {str(e)}")
             raise Exception(f"配置Agent失败: {str(e)}")
 
-    async def trigger_agent(self, agent_id: str, user_id: str, lang: str, query: str = None):
+    async def trigger_agent(self, agent_id: str, user_id: str, lang: str, query: str = None, stream: bool = False):
         """触发指定的Agent，获取AI响应
         
         Args:
@@ -262,9 +262,10 @@ class AgentService:
             user_id: 当前用户ID
             lang: 语言代码
             query: 查询字符串，可选参数
+            stream: 是否使用流式响应
             
         Returns:
-            dict: 包含AI响应和工具调用结果
+            dict 或 generator: 包含AI响应和工具调用结果，或者是流式响应的生成器
         """
         try:
             # 获取Agent
@@ -304,8 +305,6 @@ class AgentService:
                 logger.error(f"初始化模型服务失败: {str(model_error)}")
                 raise Exception(f"初始化模型服务失败: {str(model_error)}")
             
-
-            
             # 直接从数据库获取工具关联，而不是使用agent.tools
             tool_services = {}
             tool_results = {}
@@ -316,7 +315,6 @@ class AgentService:
                 from services.tool_factory import ToolFactory
                 # 传递数据库连接和查询参数
                 tool_services, tool_results = await ToolFactory.create_and_invoke_tools(tools, query=query, db=self.db)
-        
             
             # 获取提示词
             prompt = prompts[0]  # 使用第一个提示词
@@ -356,41 +354,121 @@ class AgentService:
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=human_message)
             ]
-            ai_response = ai_service.invoke(messages)
-            
-            # 从响应中提取内容
-            if hasattr(ai_response, 'content'):
-                ai_response = ai_response.content
             
             # 更新Agent的触发时间
             self.agent_dao.update_agent_trigger_date(agent_id)
             
-            # 完成调用记录，标记为成功
-            metrics = {"output_text": ai_response}
-            self.agent_invocation_dao.complete_invocation(
-                invocation_id,
-                success=True,
-                metrics=metrics
-            )
-
-            # 保存工具调用结果
-            if tool_results and tool_services:
-                await ToolFactory.save_tool_results(
-                    tool_results=tool_results,
-                    tool_services=tool_services,
-                    invocation_id=invocation_id,
-                    result=ai_response,
-                    user_id=user_id
+            # 如果是流式响应
+            if stream:
+                # 创建一个异步生成器函数来处理流式响应
+                async def response_generator():
+                    full_response = ""
+                    try:
+                        # 流式调用AI服务
+                        ai_stream = ai_service.invoke(messages, stream=True)
+                        
+                        # 返回初始信息
+                        yield {
+                            "event": "start",
+                            "data": {
+                                "agent_id": agent_id,
+                                "invocation_id": invocation_id
+                            }
+                        }
+                        
+                        # 处理流式响应
+                        async for chunk in ai_stream:
+                            if hasattr(chunk, 'content') and chunk.content:
+                                content = chunk.content
+                                full_response += content
+                                # 返回每个数据块
+                                yield {
+                                    "event": "chunk",
+                                    "data": {
+                                        "content": content
+                                    }
+                                }
+                        
+                        # 完成调用记录，标记为成功
+                        metrics = {"output_text": full_response}
+                        self.agent_invocation_dao.complete_invocation(
+                            invocation_id,
+                            success=True,
+                            metrics=metrics
+                        )
+                        
+                        # 保存工具调用结果
+                        if tool_results and tool_services:
+                            await ToolFactory.save_tool_results(
+                                tool_results=tool_results,
+                                tool_services=tool_services,
+                                invocation_id=invocation_id,
+                                result=full_response,
+                                user_id=user_id
+                            )
+                            logger.info(f"已保存Agent {agent_id} 的工具调用结果")
+                        
+                        # 返回完成信息
+                        yield {
+                            "event": "end",
+                            "data": {
+                                "agent_id": agent_id,
+                                "invocation_id": invocation_id,
+                                "full_response": full_response
+                            }
+                        }
+                    except Exception as e:
+                        logger.error(f"流式处理过程中出错: {str(e)}")
+                        # 返回错误信息
+                        yield {
+                            "event": "error",
+                            "data": {
+                                "error": str(e)
+                            }
+                        }
+                        # 更新调用记录为失败
+                        self.agent_invocation_dao.complete_invocation(
+                            invocation_id,
+                            success=False,
+                            error=str(e)
+                        )
+                
+                # 返回生成器
+                return response_generator()
+            else:
+                # 非流式调用
+                ai_response = ai_service.invoke(messages, stream=False)
+                
+                # 从响应中提取内容
+                if hasattr(ai_response, 'content'):
+                    ai_response = ai_response.content
+                
+                # 完成调用记录，标记为成功
+                metrics = {"output_text": ai_response}
+                self.agent_invocation_dao.complete_invocation(
+                    invocation_id,
+                    success=True,
+                    metrics=metrics
                 )
-                logger.info(f"已保存Agent {agent_id} 的工具调用结果")
-            
-            # 返回结果
-            return {
-                "agent_id": agent_id,
-                "ai_response": ai_response,
-                "tool_results": tool_results,
-                "invocation_id": invocation_id
-            }
+
+                # 保存工具调用结果
+                if tool_results and tool_services:
+                    await ToolFactory.save_tool_results(
+                        tool_results=tool_results,
+                        tool_services=tool_services,
+                        invocation_id=invocation_id,
+                        result=ai_response,
+                        user_id=user_id
+                    )
+                    logger.info(f"已保存Agent {agent_id} 的工具调用结果")
+                
+                # 返回结果
+                return {
+                    "agent_id": agent_id,
+                    "ai_response": ai_response,
+                    "tool_results": tool_results,
+                    "invocation_id": invocation_id
+                }
         except Exception as e:
             logger.error(f"触发Agent失败: {str(e)}")
             

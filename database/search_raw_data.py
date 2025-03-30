@@ -12,8 +12,8 @@ class SearchRawData(Base):
     invocation_id = Column(String(36), ForeignKey('agent_invocations.id'), nullable=False, comment='关联的调用ID')
     engine_type = Column(String(50), nullable=False, comment='搜索引擎类型')
     content_type = Column(String(50), nullable=False, comment='内容类型')
-    request_data = Column(JSON, nullable=True, comment='请求数据')
-    response_data = Column(JSON, nullable=True, comment='响应数据')
+    request = Column(JSON, nullable=True, comment='请求数据')
+    response = Column(JSON, nullable=True, comment='响应数据')
     structured_data = Column(JSON, nullable=True, comment='结构化数据')
     created_at = Column(BigInteger, default=lambda: int(time.time() * 1000), comment='创建时间戳(毫秒)')
     
