@@ -85,54 +85,62 @@ async def search(query: SearchQuery, request: Request):
         
         # 创建一个异步生成器来处理流式响应
         async def sse_generator():
-            google_results = []
-            
             # 发送初始事件
             yield f"data: {json.dumps({'event': 'start', 'data': {'query': query.query}})}\n\n"
             
             try:
-                # 触发这个agent，传递query参数，但不启用流式响应
-                result = await agent_service.trigger_agent(
+                # 触发这个agent，传递query参数，启用流式响应
+                response = await agent_service.trigger_agent(
                     agent_id=agent.key_id, 
                     user_id=user_id, 
                     lang=lang, 
                     query=query.query,
-                    stream=False  # 暂时使用非流式响应
+                    stream=True  # 使用流式响应
                 )
                 
-                # 检查结果
-                if not result or "error" in result:
-                    error_msg = result.get("error", "搜索失败") if result else "搜索失败"
-                    yield f"data: {json.dumps({'event': 'error', 'data': {'error': error_msg}})}\n\n"
-                    return
-                
-                # 获取AI响应
-                ai_response = result.get("ai_response", "")
-                
-                # 模拟流式返回AI响应（每个字符作为一个块）
-                # 实际应用中可以按句子或段落分割
-                for i in range(0, len(ai_response), 10):  # 每10个字符一个块
-                    chunk = ai_response[i:i+10]
-                    yield f"data: {json.dumps({'event': 'chunk', 'data': {'content': chunk}})}\n\n"
-                    # 可以添加一个小延迟来模拟真实的流式效果
-                    # await asyncio.sleep(0.05)
-                
-                # 获取Google搜索结果
-                if "tool_results" in result and isinstance(result["tool_results"], dict):
-                    tool_results = result["tool_results"]
-                    if "google_search" in tool_results and isinstance(tool_results["google_search"], dict):
+                # 检查返回类型，处理可能的字典返回值或异步生成器
+                if hasattr(response, '__aiter__'):
+                    # 是异步生成器，直接传递事件
+                    async for chunk in response:
+                        # 将事件直接转发给客户端
+                        yield f"data: {json.dumps(chunk)}\n\n"
+                else:
+                    # 返回的是字典，直接处理
+                    logger.info("trigger_agent返回了字典而不是异步生成器，直接处理")
+                    
+                    # 检查结果
+                    if not response or "error" in response:
+                        error_msg = response.get("error", "搜索失败") if response else "搜索失败"
+                        yield f"data: {json.dumps({'event': 'error', 'data': {'error': error_msg}})}\n\n"
+                        return
+                    
+                    # 获取AI响应和调用ID
+                    ai_response = response.get("ai_response", "")
+                    invocation_id = response.get("invocation_id", "")
+                    tool_results = response.get("tool_results", {})
+                    
+                    # 模拟流式返回AI响应
+                    for i in range(0, len(ai_response), 10):  # 每10个字符一个块
+                        chunk = ai_response[i:i+10]
+                        yield f"data: {json.dumps({'event': 'chunk', 'data': {'content': chunk}})}\n\n"
+                    
+                    # 获取Google搜索结果
+                    google_results = []
+                    if isinstance(tool_results, dict) and "google_search" in tool_results:
                         google_search = tool_results["google_search"]
-                        if "image_results" in google_search and isinstance(google_search["image_results"], list):
+                        if isinstance(google_search, dict) and "image_results" in google_search:
                             google_results = google_search["image_results"]
-                
-                # 发送Google搜索结果
-                yield f"data: {json.dumps({'event': 'google_results', 'data': {'results': google_results}})}\n\n"
-                
-                # 发送结束事件
-                yield f"data: {json.dumps({'event': 'end', 'data': {'invocation_id': result.get('invocation_id', ''), 'full_response': ai_response}})}\n\n"
+                    
+                    # 发送Google搜索结果
+                    yield f"data: {json.dumps({'event': 'google_results', 'data': {'results': google_results}})}\n\n"
+                    
+                    # 发送结束事件
+                    yield f"data: {json.dumps({'event': 'end', 'data': {'invocation_id': invocation_id, 'full_response': ai_response}})}\n\n"
             
             except Exception as e:
                 logger.error(f"流式处理过程中出错: {str(e)}")
+                import traceback
+                logger.error(f"详细错误: {traceback.format_exc()}")
                 yield f"data: {json.dumps({'event': 'error', 'data': {'error': str(e)}})}\n\n"
         
         # 返回流式响应

@@ -78,51 +78,30 @@ class DeepSeekService:
             # 处理流式响应
             if stream:
                 logger.info("开始接收流式响应...")
-                full_response = {"role": "assistant", "content": "", "tool_calls": []}
-                tool_call_chunks = {}  # 用于存储工具调用的分块
                 
-                for chunk in response:
-                    delta = chunk.choices[0].delta
-                    
-                    # 打印接收到的数据块
-                    logger.info(f"接收到数据块: {delta}")
-                    
-                    # 处理内容
-                    if hasattr(delta, 'content') and delta.content is not None:
-                        full_response["content"] += delta.content
-                        logger.info(f"当前累积内容: {full_response['content']}")
-                    
-                    # 处理工具调用
-                    if hasattr(delta, 'tool_calls') and delta.tool_calls:
-                        for tool_call in delta.tool_calls:
-                            tool_index = tool_call.index
-                            
-                            # 初始化工具调用
-                            if tool_index not in tool_call_chunks:
-                                tool_call_chunks[tool_index] = {
-                                    "id": "",
-                                    "type": "function",
-                                    "function": {"name": "", "arguments": ""}
-                                }
-                            
-                            # 更新ID
-                            if hasattr(tool_call, 'id') and tool_call.id:
-                                tool_call_chunks[tool_index]["id"] = tool_call.id
-                            
-                            # 更新函数名
-                            if hasattr(tool_call.function, 'name') and tool_call.function.name:
-                                tool_call_chunks[tool_index]["function"]["name"] = tool_call.function.name
-                            
-                            # 更新参数
-                            if hasattr(tool_call.function, 'arguments') and tool_call.function.arguments:
-                                tool_call_chunks[tool_index]["function"]["arguments"] += tool_call.function.arguments
+                # 直接返回流式响应生成器
+                async def response_generator():
+                    full_content = ""
+                    for chunk in response:
+                        delta = chunk.choices[0].delta
+                        
+                        # 打印接收到的数据块
+                        logger.info(f"接收到数据块: {delta}")
+                        
+                        # 处理内容
+                        if hasattr(delta, 'content') and delta.content is not None:
+                            full_content += delta.content
+                            # 实时返回内容块
+                            yield {"content": delta.content, "full_content": full_content}
+                        
+                        # 处理工具调用
+                        if hasattr(delta, 'tool_calls') and delta.tool_calls:
+                            for tool_call in delta.tool_calls:
+                                # 返回工具调用信息
+                                yield {"tool_call": tool_call}
                 
-                # 合并工具调用
-                for tool_chunk in tool_call_chunks.values():
-                    full_response["tool_calls"].append(tool_chunk)
-                
-                logger.info(f"流式响应完成，最终结果: {full_response}")
-                return full_response
+                # 返回异步生成器
+                return response_generator()
             else:
                 # 非流式响应处理
                 logger.info(f"DeepSeek响应: {response}")

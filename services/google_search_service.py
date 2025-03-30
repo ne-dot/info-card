@@ -116,77 +116,13 @@ class GoogleSearchService(ToolProtocol):
             image_results = data.get('image_results', [])
             lang = kwargs.get('lang', 'zh')
             
-            # 保存文本搜索结果
-            if text_results:
-                # 构建更详细的结构化数据
-                text_structured_data = {
-                    "total_results": len(text_results),
-                    "result_items": text_results  # 保存完整的结果项
-                }
-                
-                # 确保数据是JSON格式
-                request_json = {"query": query}
-                response_json = text_results
-                structured_json = text_structured_data
-                
-                # 使用正确的字段名和JSON数据
-                self.search_raw_dao.create_search_data(
-                    invocation_id=invocation_id,
-                    engine_type="google",
-                    content_type="text",
-                    request_data=request_json,  # 使用JSON对象
-                    response_data=response_json,  # 使用JSON对象
-                    structured_data=structured_json  # 使用JSON对象
-                )
-                logger.info(f"已保存 {len(text_results)} 条文本搜索结果")
-            
-            # 保存图片搜索结果
-            if image_results:
-                # 构建更详细的结构化数据
-                image_structured_data = {
-                    "total_results": len(image_results),
-                    "result_items": image_results  # 保存完整的结果项
-                }
-                
-                # 确保数据是JSON格式
-                request_json = {"query": query}
-                response_json = image_results
-                structured_json = image_structured_data
-                
-                # 使用正确的字段名和JSON数据
-                self.search_raw_dao.create_search_data(
-                    invocation_id=invocation_id,
-                    engine_type="google",
-                    content_type="image",
-                    request_data=request_json,  # 使用JSON对象
-                    response_data=response_json,  # 使用JSON对象
-                    structured_data=structured_json  # 使用JSON对象
-                )
-                logger.info(f"已保存 {len(image_results)} 条图片搜索结果")
+            # 保存文本和图片搜索结果
+            self._save_text_results(invocation_id, query, text_results)
+            self._save_image_results(invocation_id, query, image_results)
             
             # 保存AI生成的结果摘要
-            if result and self.summary_dao:
-                # 构建摘要元数据
-                summary_metadata = {
-                    'model': kwargs.get('model', 'unknown'),
-                    'query': query,
-                    'language': lang,
-                    'text_sources_count': len(text_results),
-                    'image_sources_count': len(image_results)
-                }
-                
-                # 保存AI生成的摘要
-                try:
-                    self.summary_dao.create_summary(
-                        invocation_id=invocation_id,
-                        content=result,
-                        metadata=summary_metadata
-                    )
-                    logger.info(f"已保存AI生成的摘要，长度: {len(result)}")
-                except Exception as summary_error:
-                    logger.error(f"保存AI摘要失败: {str(summary_error)}")
-            elif result:
-                logger.warning("未提供SummaryDAO，无法保存AI摘要")
+            if result:
+                self._save_ai_summary(invocation_id, result, query, lang, text_results, image_results, kwargs)
             
             return True
             
@@ -195,6 +131,126 @@ class GoogleSearchService(ToolProtocol):
             # 打印更详细的错误信息
             import traceback
             logger.error(f"详细错误: {traceback.format_exc()}")
+            return False
+    
+    def _save_text_results(self, invocation_id: str, query: str, text_results: List[Dict]) -> bool:
+        """保存文本搜索结果
+        
+        Args:
+            invocation_id: 调用ID
+            query: 搜索查询
+            text_results: 文本搜索结果
+            
+        Returns:
+            bool: 保存成功返回True，否则返回False
+        """
+        if not text_results:
+            return True
+            
+        try:
+            # 构建更详细的结构化数据
+            text_structured_data = {
+                "total_results": len(text_results),
+                "result_items": text_results  # 保存完整的结果项
+            }
+            
+            # 确保数据是JSON格式
+            request_json = {"query": query}
+            
+            # 使用正确的字段名和JSON数据
+            self.search_raw_dao.create_search_data(
+                invocation_id=invocation_id,
+                engine_type="google",
+                content_type="text",
+                request_data=request_json,
+                response_data=text_results,
+                structured_data=text_structured_data
+            )
+            logger.info(f"已保存 {len(text_results)} 条文本搜索结果")
+            return True
+        except Exception as e:
+            logger.error(f"保存文本搜索结果失败: {str(e)}")
+            return False
+    
+    def _save_image_results(self, invocation_id: str, query: str, image_results: List[Dict]) -> bool:
+        """保存图片搜索结果
+        
+        Args:
+            invocation_id: 调用ID
+            query: 搜索查询
+            image_results: 图片搜索结果
+            
+        Returns:
+            bool: 保存成功返回True，否则返回False
+        """
+        if not image_results:
+            return True
+            
+        try:
+            # 构建更详细的结构化数据
+            image_structured_data = {
+                "total_results": len(image_results),
+                "result_items": image_results  # 保存完整的结果项
+            }
+            
+            # 确保数据是JSON格式
+            request_json = {"query": query}
+            
+            # 使用正确的字段名和JSON数据
+            self.search_raw_dao.create_search_data(
+                invocation_id=invocation_id,
+                engine_type="google",
+                content_type="image",
+                request_data=request_json,
+                response_data=image_results,
+                structured_data=image_structured_data
+            )
+            logger.info(f"已保存 {len(image_results)} 条图片搜索结果")
+            return True
+        except Exception as e:
+            logger.error(f"保存图片搜索结果失败: {str(e)}")
+            return False
+    
+    def _save_ai_summary(self, invocation_id: str, result: str, query: str, lang: str, 
+                         text_results: List[Dict], image_results: List[Dict], kwargs: Dict) -> bool:
+        """保存AI生成的结果摘要
+        
+        Args:
+            invocation_id: 调用ID
+            result: AI生成的回复
+            query: 搜索查询
+            lang: 语言
+            text_results: 文本搜索结果
+            image_results: 图片搜索结果
+            kwargs: 其他参数
+            
+        Returns:
+            bool: 保存成功返回True，否则返回False
+        """
+        if not self.summary_dao:
+            logger.warning("未提供SummaryDAO，无法保存AI摘要")
+            return False
+            
+        try:
+            # 构建摘要元数据
+            summary_metadata = {
+                'model': kwargs.get('model', 'unknown'),
+                'query': query,
+                'language': lang,
+                'text_sources_count': len(text_results),
+                'image_sources_count': len(image_results)
+            }
+            
+            # 保存AI生成的摘要
+            self.summary_dao.create_summary(
+                invocation_id=invocation_id,
+                content=result,
+                metadata=summary_metadata
+            )
+            logger.info(f"已保存AI生成的摘要，长度: {len(result)}")
+            return True
+        except Exception as e:
+            logger.error(f"保存AI摘要失败: {str(e)}")
             return False
     
     def _build_search_summary(self, text_results, image_results, error, lang):

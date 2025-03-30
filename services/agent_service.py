@@ -267,238 +267,298 @@ class AgentService:
         Returns:
             dict 或 generator: 包含AI响应和工具调用结果，或者是流式响应的生成器
         """
+        invocation_id = None
         try:
-            # 获取Agent
-            agent = self.agent_dao.get_agent_by_key_id(agent_id)
-            if not agent:
-                raise Exception(f"找不到ID为{agent_id}的Agent")
+            # 验证Agent并获取必要配置
+            agent, model_config, prompt_content = await self._validate_agent_config(agent_id, user_id, lang)
             
-            # 检查权限
-            if not agent.check_user_access(user_id):
-                raise Exception("您没有权限触发此Agent")
+            # 初始化AI服务和工具
+            ai_service, tool_services, tool_results = await self._initialize_services(agent_id, model_config, query)
             
-            # 检查必要配置
-            # 1. 检查模型配置
-            if not agent.model_config_id:
-                raise Exception("Agent未配置模型，无法触发")
+            # 构建提示词和消息
+            system_prompt, human_message, messages = self._build_messages(prompt_content, tool_services, tool_results, lang, query)
             
-            # 2. 检查提示词配置
-            prompts = self.agent_prompt_dao.get_prompts_by_agent_id(agent_id)
-            if not prompts or len(prompts) == 0:
-                raise Exception("Agent未配置提示词，无法触发")
-            
-            # 获取模型配置 - 使用 await 调用异步方法
-            model_config = await self.agent_model_config_dao.get_model_config_by_id(agent.model_config_id)
-            if not model_config:
-                raise Exception(f"找不到ID为{agent.model_config_id}的模型配置")
-            
-            logger.info(f"获取到的模型配置: {model_config}")
-            
-            # 使用工厂模式初始化AI服务
-            from services.model_factory import ModelFactory
-            try:
-                ai_service = ModelFactory.create_model_service(
-                    model_config["model_name"],  # 使用字典访问方式
-                    model_config["config"]  # 使用字典访问方式
-                )
-            except Exception as model_error:
-                logger.error(f"初始化模型服务失败: {str(model_error)}")
-                raise Exception(f"初始化模型服务失败: {str(model_error)}")
-            
-            # 直接从数据库获取工具关联，而不是使用agent.tools
-            tool_services = {}
-            tool_results = {}
-            tools = self.agent_dao.get_tools_by_agent_id(agent_id)
-            
-            if tools and len(tools) > 0:
-                # 使用工厂模式初始化和调用工具服务
-                from services.tool_factory import ToolFactory
-                # 传递数据库连接和查询参数
-                tool_services, tool_results = await ToolFactory.create_and_invoke_tools(tools, query=query, db=self.db)
-            
-            # 获取提示词
-            prompt = prompts[0]  # 使用第一个提示词
-            prompt_content = prompt.content_en if lang == "en" else prompt.content_zh
-            
-            # 使用ToolFactory的build_tool_prompt方法构建完整提示词和人类消息
-            from services.tool_factory import ToolFactory
-            system_prompt, human_message = ToolFactory.build_tool_prompt(
-                tool_results=tool_results,
-                tool_services=tool_services,
-                base_prompt=prompt_content,
-                lang=lang,
-                query=query
-            )
-
-            logger.info(f"===================================")
-            logger.info(f"构建的提示词和人类消息: {system_prompt}, {human_message}")
-            logger.info(f"===================================")
-            
-            # 创建调用记录 - 正确处理返回的对象
-            invocation = self.agent_invocation_dao.create_invocation(
-                agent_id=agent_id,
-                user_id=user_id,
-                input_text="触发Agent请求"
-            )
-            
-            # 从返回的对象中获取ID
-            invocation_id = invocation.id if hasattr(invocation, 'id') else str(invocation)
-            
-            # 标记开始处理，并保存system_prompt到input_params
-            input_params = {"prompt": system_prompt}
-            self.agent_invocation_dao.start_invocation(invocation_id, input_params=input_params)
-            
-            logger.info(f"开始处理Agent {agent_id} 的请求,system_prompt,human_message: {system_prompt},{human_message}")
-            # 使用消息列表方式调用AI服务
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=human_message)
-            ]
+            # 创建调用记录
+            invocation_id = await self._create_invocation(agent_id, user_id, system_prompt)
             
             # 更新Agent的触发时间
             self.agent_dao.update_agent_trigger_date(agent_id)
             
-            # 如果是流式响应
+            # 根据是否流式响应选择不同的处理方式
             if stream:
-                # 创建一个异步生成器函数来处理流式响应
-                async def response_generator():
-                    full_response = ""
-                    try:
-                        # 流式调用AI服务
-                        ai_stream = ai_service.invoke(messages, stream=True)
-                        
-                        # 返回初始信息
-                        yield {
-                            "event": "start",
-                            "data": {
-                                "agent_id": agent_id,
-                                "invocation_id": invocation_id
-                            }
-                        }
-                        
-                        # 处理流式响应
-                        async for chunk in ai_stream:
-                            if hasattr(chunk, 'content') and chunk.content:
-                                content = chunk.content
-                                full_response += content
-                                # 返回每个数据块
-                                yield {
-                                    "event": "chunk",
-                                    "data": {
-                                        "content": content
-                                    }
-                                }
-                        
-                        # 完成调用记录，标记为成功
-                        metrics = {"output_text": full_response}
-                        self.agent_invocation_dao.complete_invocation(
-                            invocation_id,
-                            success=True,
-                            metrics=metrics
-                        )
-                        
-                        # 保存工具调用结果
-                        if tool_results and tool_services:
-                            await ToolFactory.save_tool_results(
-                                tool_results=tool_results,
-                                tool_services=tool_services,
-                                invocation_id=invocation_id,
-                                result=full_response,
-                                user_id=user_id
-                            )
-                            logger.info(f"已保存Agent {agent_id} 的工具调用结果")
-                        
-                        # 返回完成信息
-                        yield {
-                            "event": "end",
-                            "data": {
-                                "agent_id": agent_id,
-                                "invocation_id": invocation_id,
-                                "full_response": full_response
-                            }
-                        }
-                    except Exception as e:
-                        logger.error(f"流式处理过程中出错: {str(e)}")
-                        # 返回错误信息
-                        yield {
-                            "event": "error",
-                            "data": {
-                                "error": str(e)
-                            }
-                        }
-                        # 更新调用记录为失败
-                        self.agent_invocation_dao.complete_invocation(
-                            invocation_id,
-                            success=False,
-                            error=str(e)
-                        )
-                
-                # 返回生成器
-                return response_generator()
+                return self._handle_stream_response(ai_service, messages, agent_id, invocation_id, tool_services, tool_results, user_id)
             else:
-                # 非流式调用
-                ai_response = ai_service.invoke(messages, stream=False)
+                return await self._handle_normal_response(ai_service, messages, agent_id, invocation_id, tool_services, tool_results, user_id)
                 
-                # 从响应中提取内容
-                if hasattr(ai_response, 'content'):
-                    ai_response = ai_response.content
+        except Exception as e:
+            logger.error(f"触发Agent失败: {str(e)}")
+            await self._handle_invocation_error(agent_id, user_id, invocation_id, str(e))
+            raise Exception(f"触发Agent失败: {str(e)}")
+    
+    async def _validate_agent_config(self, agent_id: str, user_id: str, lang: str):
+        """验证Agent配置并获取必要信息"""
+        # 获取Agent
+        agent = self.agent_dao.get_agent_by_key_id(agent_id)
+        if not agent:
+            raise Exception(f"找不到ID为{agent_id}的Agent")
+        
+        # 检查权限
+        if not agent.check_user_access(user_id):
+            raise Exception("您没有权限触发此Agent")
+        
+        # 检查必要配置
+        if not agent.model_config_id:
+            raise Exception("Agent未配置模型，无法触发")
+        
+        # 检查提示词配置
+        prompts = self.agent_prompt_dao.get_prompts_by_agent_id(agent_id)
+        if not prompts or len(prompts) == 0:
+            raise Exception("Agent未配置提示词，无法触发")
+        
+        # 获取模型配置
+        model_config = await self.agent_model_config_dao.get_model_config_by_id(agent.model_config_id)
+        if not model_config:
+            raise Exception(f"找不到ID为{agent.model_config_id}的模型配置")
+        
+        # 获取提示词内容
+        prompt = prompts[0]  # 使用第一个提示词
+        prompt_content = prompt.content_en if lang == "en" else prompt.content_zh
+        
+        return agent, model_config, prompt_content
+    
+    async def _initialize_services(self, agent_id: str, model_config: dict, query: str = None):
+        """初始化AI服务和工具服务"""
+        # 初始化AI服务
+        from services.model_factory import ModelFactory
+        try:
+            ai_service = ModelFactory.create_model_service(
+                model_config["model_name"],
+                model_config["config"]
+            )
+        except Exception as model_error:
+            logger.error(f"初始化模型服务失败: {str(model_error)}")
+            raise Exception(f"初始化模型服务失败: {str(model_error)}")
+        
+        # 初始化工具服务
+        tool_services = {}
+        tool_results = {}
+        tools = self.agent_dao.get_tools_by_agent_id(agent_id)
+        
+        if tools and len(tools) > 0:
+            from services.tool_factory import ToolFactory
+            tool_services, tool_results = await ToolFactory.create_and_invoke_tools(tools, query=query, db=self.db)
+        
+        return ai_service, tool_services, tool_results
+    
+    def _build_messages(self, prompt_content: str, tool_services: dict, tool_results: dict, lang: str, query: str = None):
+        """构建提示词和消息"""
+        from services.tool_factory import ToolFactory
+        system_prompt, human_message = ToolFactory.build_tool_prompt(
+            tool_results=tool_results,
+            tool_services=tool_services,
+            base_prompt=prompt_content,
+            lang=lang,
+            query=query
+        )
+        
+        # 构建消息列表
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=human_message)
+        ]
+        
+        return system_prompt, human_message, messages
+    
+    async def _create_invocation(self, agent_id: str, user_id: str, system_prompt: str):
+        """创建调用记录"""
+        invocation = self.agent_invocation_dao.create_invocation(
+            agent_id=agent_id,
+            user_id=user_id,
+            input_text="触发Agent请求"
+        )
+        
+        # 从返回的对象中获取ID
+        invocation_id = invocation.id if hasattr(invocation, 'id') else str(invocation)
+        
+        # 标记开始处理，并保存system_prompt到input_params
+        input_params = {"prompt": system_prompt}
+        self.agent_invocation_dao.start_invocation(invocation_id, input_params=input_params)
+        
+        return invocation_id
+    
+    def _handle_stream_response(self, ai_service, messages, agent_id, invocation_id, tool_services, tool_results, user_id):
+        """处理流式响应"""
+        async def response_generator():
+            full_response = ""
+            try:
+                # 流式调用AI服务
+                ai_stream = ai_service.invoke(messages, stream=True)
+                
+                # 返回初始信息
+                yield {
+                    "event": "start",
+                    "data": {
+                        "agent_id": agent_id,
+                        "invocation_id": invocation_id
+                    }
+                }
+                
+                # 处理流式响应
+                # 检查返回类型，处理可能的异步生成器或直接返回的对象
+                if hasattr(ai_stream, '__aiter__'):
+                    # 是异步生成器，正确处理
+                    async for chunk in ai_stream:
+                        # 处理不同格式的数据块
+                        if isinstance(chunk, dict) and "content" in chunk:
+                            # 新格式：直接包含content的字典
+                            content = chunk["content"]
+                            full_response += content
+                            # 立即返回每个数据块
+                            yield {
+                                "event": "chunk",
+                                "data": {
+                                    "content": content
+                                }
+                            }
+                        elif hasattr(chunk, 'content') and chunk.content:
+                            # 旧格式：对象带有content属性
+                            content = chunk.content
+                            full_response += content
+                            # 立即返回每个数据块
+                            yield {
+                                "event": "chunk",
+                                "data": {
+                                    "content": content
+                                }
+                            }
+                        # 处理工具调用
+                        elif isinstance(chunk, dict) and "tool_call" in chunk:
+                            # 工具调用信息，可以记录但不直接发送给客户端
+                            logger.info(f"收到工具调用: {chunk['tool_call']}")
+                else:
+                    # 不是异步生成器，可能是直接返回的对象
+                    if hasattr(ai_stream, 'content'):
+                        content = ai_stream.content
+                        full_response = content
+                        # 返回完整内容作为一个块
+                        yield {
+                            "event": "chunk",
+                            "data": {
+                                "content": content
+                            }
+                        }
                 
                 # 完成调用记录，标记为成功
-                metrics = {"output_text": ai_response}
+                metrics = {"output_text": full_response}
                 self.agent_invocation_dao.complete_invocation(
                     invocation_id,
                     success=True,
                     metrics=metrics
                 )
-
+                
                 # 保存工具调用结果
                 if tool_results and tool_services:
+                    from services.tool_factory import ToolFactory
                     await ToolFactory.save_tool_results(
                         tool_results=tool_results,
                         tool_services=tool_services,
                         invocation_id=invocation_id,
-                        result=ai_response,
+                        result=full_response,
                         user_id=user_id
                     )
-                    logger.info(f"已保存Agent {agent_id} 的工具调用结果")
                 
-                # 返回结果
-                return {
-                    "agent_id": agent_id,
-                    "ai_response": ai_response,
-                    "tool_results": tool_results,
-                    "invocation_id": invocation_id
+                # 返回完成信息
+                yield {
+                    "event": "end",
+                    "data": {
+                        "agent_id": agent_id,
+                        "invocation_id": invocation_id,
+                        "full_response": full_response
+                    }
                 }
-        except Exception as e:
-            logger.error(f"触发Agent失败: {str(e)}")
-            
-            # 记录失败的调用
-            try:
-                if 'invocation_id' in locals():
-                    # 如果已经创建了调用记录，更新它为失败
-                    self.agent_invocation_dao.complete_invocation(
-                        invocation_id,
-                        success=False,
-                        error=str(e)
-                    )
-                else:
-                    # 如果还没有创建调用记录，创建一个失败的记录
-                    invocation = self.agent_invocation_dao.create_invocation(
-                        agent_id=agent_id,
-                        user_id=user_id,
-                        input_text="触发Agent请求"
-                    )
-                    # 从返回的对象中获取ID
-                    invocation_id = invocation.id if hasattr(invocation, 'id') else str(invocation)
-                    self.agent_invocation_dao.complete_invocation(
-                        invocation_id,
-                        success=False,
-                        error=str(e)
-                    )
-            except Exception as inner_e:
-                logger.error(f"记录失败调用时出错: {str(inner_e)}")
-            
-            raise Exception(f"触发Agent失败: {str(e)}")
+            except Exception as e:
+                logger.error(f"流式处理过程中出错: {str(e)}")
+                import traceback
+                logger.error(f"详细错误: {traceback.format_exc()}")
+                # 返回错误信息
+                yield {
+                    "event": "error",
+                    "data": {
+                        "error": str(e)
+                    }
+                }
+                # 更新调用记录为失败
+                self.agent_invocation_dao.complete_invocation(
+                    invocation_id,
+                    success=False,
+                    error=str(e)
+                )
+        
+        # 返回生成器
+        return response_generator()
+    
+    async def _handle_normal_response(self, ai_service, messages, agent_id, invocation_id, tool_services, tool_results, user_id):
+        """处理普通响应"""
+        # 非流式调用
+        ai_response = ai_service.invoke(messages, stream=False)
+        
+        # 从响应中提取内容
+        if hasattr(ai_response, 'content'):
+            ai_response = ai_response.content
+        
+        # 完成调用记录，标记为成功
+        metrics = {"output_text": ai_response}
+        self.agent_invocation_dao.complete_invocation(
+            invocation_id,
+            success=True,
+            metrics=metrics
+        )
+
+        # 保存工具调用结果
+        if tool_results and tool_services:
+            from services.tool_factory import ToolFactory
+            await ToolFactory.save_tool_results(
+                tool_results=tool_results,
+                tool_services=tool_services,
+                invocation_id=invocation_id,
+                result=ai_response,
+                user_id=user_id
+            )
+        
+        # 返回结果
+        return {
+            "agent_id": agent_id,
+            "ai_response": ai_response,
+            "tool_results": tool_results,
+            "invocation_id": invocation_id
+        }
+    
+    async def _handle_invocation_error(self, agent_id, user_id, invocation_id, error_message):
+        """处理调用错误"""
+        try:
+            if invocation_id:
+                # 如果已经创建了调用记录，更新它为失败
+                self.agent_invocation_dao.complete_invocation(
+                    invocation_id,
+                    success=False,
+                    error=error_message
+                )
+            else:
+                # 如果还没有创建调用记录，创建一个失败的记录
+                invocation = self.agent_invocation_dao.create_invocation(
+                    agent_id=agent_id,
+                    user_id=user_id,
+                    input_text="触发Agent请求"
+                )
+                # 从返回的对象中获取ID
+                invocation_id = invocation.id if hasattr(invocation, 'id') else str(invocation)
+                self.agent_invocation_dao.complete_invocation(
+                    invocation_id,
+                    success=False,
+                    error=error_message
+                )
+        except Exception as inner_e:
+            logger.error(f"记录失败调用时出错: {str(inner_e)}")
 
     async def get_agent_model(self, agent_id: str):
         """获取Agent的模型配置
