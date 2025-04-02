@@ -115,24 +115,11 @@ async def search(query: SearchQuery, request: Request):
                         return
                     
                     # 获取AI响应和调用ID
-                    ai_response = response.get("ai_response", "")
-                    invocation_id = response.get("invocation_id", "")
-                    tool_results = response.get("tool_results", {})
-                    
+                    ai_response = response.get("ai_response", "") 
                     # 模拟流式返回AI响应
-                    for i in range(0, len(ai_response), 10):  # 每10个字符一个块
-                        chunk = ai_response[i:i+10]
-                        yield f"data: {json.dumps({'event': 'chunk', 'data': {'content': chunk}})}\n\n"
-                    
-                    # 获取Google搜索结果
-                    google_results = []
-                    if isinstance(tool_results, dict) and "google_search" in tool_results:
-                        google_search = tool_results["google_search"]
-                        if isinstance(google_search, dict) and "image_results" in google_search:
-                            google_results = google_search["image_results"]
-                    
-                    # 发送Google搜索结果
-                    yield f"data: {json.dumps({'event': 'google_results', 'data': {'results': google_results}})}\n\n"
+                    # for i in range(0, len(ai_response), 10):  # 每10个字符一个块
+                    #     chunk = ai_response[i:i+10]
+                    #     yield f"data: {json.dumps({'event': 'chunk', 'data': {'content': chunk}})}\n\n"
                     
                     # 发送结束事件
                     yield f"data: {json.dumps({'event': 'end', 'data': {'invocation_id': invocation_id, 'full_response': ai_response}})}\n\n"

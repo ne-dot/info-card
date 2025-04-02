@@ -403,6 +403,19 @@ class AgentService:
                     }
                 }
                 
+                # 先发送Google搜索图片结果
+                if tool_results and "google_search" in tool_results:
+                    google_search = tool_results["google_search"]
+                    if isinstance(google_search, dict) and "image_results" in google_search:
+                        image_results = google_search["image_results"]
+                        logger.info(f"发送Google图片搜索结果: {len(image_results)}个")
+                        yield {
+                            "event": "google_results",
+                            "data": {
+                                "results": image_results
+                            }
+                        }
+                
                 # 处理流式响应
                 # 检查返回类型，处理可能的异步生成器或直接返回的对象
                 if hasattr(ai_stream, '__aiter__'):

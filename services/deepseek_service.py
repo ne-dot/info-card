@@ -85,9 +85,6 @@ class DeepSeekService:
                     for chunk in response:
                         delta = chunk.choices[0].delta
                         
-                        # 打印接收到的数据块
-                        logger.info(f"接收到数据块: {delta}")
-                        
                         # 处理内容
                         if hasattr(delta, 'content') and delta.content is not None:
                             full_content += delta.content
