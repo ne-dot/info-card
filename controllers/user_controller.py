@@ -10,14 +10,20 @@ from dependencies.auth import get_current_user  # 导入依赖项
 
 router = APIRouter()
 logger = setup_logger('user_controller')
-user_service = None
+# 移除全局变量 user_service = None
 
 def init_controller(service: UserService):
-    global user_service
-    user_service = service
+    # 不再需要使用全局变量
     # 初始化认证依赖
     from dependencies.auth import init_dependency
     init_dependency(service)
+
+# 添加一个依赖项函数来获取user_service
+def get_user_service(request: Request) -> UserService:
+    if not hasattr(request.app.state, "user_service"):
+        logger.error("用户服务未初始化")
+        raise HTTPException(status_code=500, detail="服务未初始化")
+    return request.app.state.user_service
 
 @router.post("/login", response_model=TokenResponse)
 async def login(login_data: UserLogin, request: Request):
@@ -25,6 +31,9 @@ async def login(login_data: UserLogin, request: Request):
     try:
         # 从请求中获取语言设置，默认为英文
         lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
+        
+        # 从app.state获取user_service
+        user_service = get_user_service(request)
         
         token, error = await user_service.login(
             login_data.username_or_email,
@@ -42,9 +51,12 @@ async def login(login_data: UserLogin, request: Request):
         return error_response(f"{get_text('login_failed', lang)}: {str(e)}", ErrorCode.UNKNOWN_ERROR)
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(refresh_token: str = Header(...)):
+async def refresh_token(request: Request, refresh_token: str = Header(...)):
     """刷新访问令牌"""
     try:
+        # 从app.state获取user_service
+        user_service = get_user_service(request)
+            
         token, error = await user_service.refresh_token(refresh_token)
         if error:
             raise HTTPException(status_code=401, detail=error)
@@ -73,12 +85,16 @@ async def anonymous_login(request: Request):
         # 从请求中获取语言设置，默认为英文
         lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
         
+        # 从app.state获取user_service
+        user_service = get_user_service(request)
+        
         # 创建匿名用户
         result, error, error_code = await user_service.create_anonymous_user(lang)
         if error:
             # 增加更详细的日志记录
             logger.warning(f"匿名登录失败: {error}, 错误码: {error_code}")
-            return error_response(error, error_code)
+            # 如果error_code为None，则使用默认错误码
+            return error_response(error, error_code or ErrorCode.UNKNOWN_ERROR)
         
         return success_response(result, get_text("anonymous_login_success", lang))
     except Exception as e:
@@ -99,6 +115,8 @@ async def register(user_data: UserCreate, request: Request):
         
         # 从请求头中获取匿名ID（如果有）
         anonymous_id = request.headers.get("X-Anonymous-ID")
+
+        user_service = get_user_service(request)
         
         user, error, error_code = await user_service.register(
             user_data.username, 
@@ -126,7 +144,7 @@ async def admin_login(
     """管理员登录接口"""
      # 从请求中获取语言设置，默认为英文
     lang = request.state.lang if hasattr(request.state, 'lang') else 'en'
-        
+    user_service = get_user_service(request)
     # 调用管理员登录服务
     token_response, error = await user_service.admin_login(
         login_data.email, 
