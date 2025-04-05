@@ -4,8 +4,7 @@ from sqlalchemy import desc
 from utils.logger import setup_logger
 from database.rss_feed import RSSFeed
 import uuid
-from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 logger = setup_logger('rss_entry_dao')
 

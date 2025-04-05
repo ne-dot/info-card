@@ -1,4 +1,3 @@
-from langchain.schema import HumanMessage, SystemMessage
 from utils.logger import setup_logger
 import os
 from openai import OpenAI

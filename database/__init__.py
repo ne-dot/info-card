@@ -11,6 +11,8 @@ from .agent_rss_feed import AgentRSSFeed
 from .user_models import UserModel, UserExternalAuth
 from .agent_model_config import AgentModelConfig
 from .agent_prompt import AgentPrompt
+# 添加导入
+from .suggestion import Suggestion
 
 # 确保所有模型都被注册
 __all__ = [

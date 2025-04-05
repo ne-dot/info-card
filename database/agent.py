@@ -210,4 +210,7 @@ class Agent(Base):
         
         return default_agent
     
+    # 在Agent类中添加suggestions关系
+    suggestions = relationship("Suggestion", back_populates="agent", cascade="all, delete-orphan")
+    
   

@@ -40,6 +40,7 @@ class UserModel(Base):
     
     # 关系
     external_auths = relationship("UserExternalAuth", back_populates="user", cascade="all, delete-orphan")
+    suggestions = relationship("Suggestion", back_populates="user")
 
 # 第三方登录详情表
 class UserExternalAuth(Base):

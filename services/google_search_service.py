@@ -1,11 +1,10 @@
 from services.tool_protocol import ToolProtocol
 from utils.logger import setup_logger
 from tools.google_search import search_google_by_text, search_google_by_image
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Tuple
 from dao.search_raw_dao import SearchRawDAO
 # 添加SummaryDAO的导入
 from dao.ai_summary_dao import AISummaryDAO
-import json
 
 logger = setup_logger('google_search_service')
 
