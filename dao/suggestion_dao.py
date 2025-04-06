@@ -70,9 +70,6 @@ class SuggestionDAO:
                 if user_id:
                     query = query.filter(Suggestion.user_id == user_id)
                 
-                if language:
-                    query = query.filter(Suggestion.language == language)
-                
                 # 按创建时间降序排序，获取最新的推荐
                 suggestions = query.order_by(Suggestion.created_at.desc()).limit(limit).all()
                 return suggestions

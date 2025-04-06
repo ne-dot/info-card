@@ -6,6 +6,7 @@ from models.user import UserResponse
 from models.suggestion import SuggestionGenerateRequest
 from dao.agent_dao import AgentDAO
 from dao.suggestion_dao import SuggestionDAO
+from utils.jwt_utils import decode_token 
 
 logger = setup_logger('suggestion_controller')
 router = APIRouter(tags=["建议"], include_in_schema=True)
@@ -62,42 +63,44 @@ async def generate_suggestions(
 
 @router.get("/suggestions")
 async def get_suggestions(
-    agent_id: str = None,
-    language: str = None,
-    limit: int = 5,
-    request: Request = None,
-    current_user: UserResponse = Depends(get_current_user)
+    request: Request
 ):
     """获取建议列表"""
     try:
-        # 如果没有提供agent_id，则查找name='建议agent'的agent
-        if not agent_id:
-            suggestion_agent = agent_dao.get_agent_by_name('建议agent')
-            if suggestion_agent:
-                agent_id = suggestion_agent.key_id
+      # 从请求头中获取token
+        token = request.headers.get("Authorization")
+        user_id = None
         
-        # 获取语言设置
-        if not language:
-            language = request.state.lang if hasattr(request.state, 'lang') else 'zh'
+        # 如果有token，尝试解析
+        if token and token.startswith("Bearer "):
+            token = token.replace("Bearer ", "")
+            try:
+                # 解析token获取user_id
+                payload = decode_token(token)
+                if payload and "sub" in payload:
+                    user_id = payload["sub"]
+                    # 如果成功获取了user_id，则不使用匿名ID
+            except Exception as e:
+                logger.warning(f"解析token失败: {str(e)}")
+                user_id = "1ba06d2a-87b6-4baf-8945-43abe2731818"
+                # 继续执行，不返回错误，因为搜索不需要强制认证
+                # 此时会使用请求头中的匿名ID（如果有）
+        else:
+            # 如果没有token，使用匿名ID
+            user_id = "1ba06d2a-87b6-4baf-8945-43abe2731818"
+
         
+        logger.info(f"user_id: {user_id}")
         # 获取建议列表
         suggestions = await suggestion_dao.get_suggestions_by_agent(
-            agent_id=agent_id,
-            user_id=current_user.user_id,
-            language=language,
-            limit=limit
+            user_id=user_id,
+            limit=5
         )
         
         # 格式化建议列表
         suggestion_list = []
         for suggestion in suggestions:
-            suggestion_list.append({
-                'id': suggestion.id,
-                'content': suggestion.content,
-                'context': suggestion.context,
-                'language': suggestion.language,
-                'created_at': suggestion.created_at
-            })
+            suggestion_list.append(suggestion.content)
         
         # 返回结果
         return success_response(suggestion_list)
@@ -118,10 +121,6 @@ def _parse_suggestions(result: str):
     import re
     
     try:
-        # 确保result是字符串
-        if not isinstance(result, str):
-            result = str(result)
-        
         # 尝试解析JSON字符串
         try:
             data = json.loads(result)
@@ -147,7 +146,7 @@ def _parse_suggestions(result: str):
                             return suggestions
         except json.JSONDecodeError:
             # 如果不是有效的JSON，尝试从文本中提取问题
-            logger.info("AI回复不是有效的JSON格式，尝试从文本中提取问题")
+            pass
         
         # 如果不是JSON或没有找到有效的建议，尝试从文本中提取问题
         lines = result.strip().split('\n')

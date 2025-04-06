@@ -3,7 +3,6 @@ from utils.logger import setup_logger
 from typing import Dict, Any, List, Tuple
 from dao.suggestion_dao import SuggestionDAO
 import json
-import re
 
 logger = setup_logger('suggestion_service')
 

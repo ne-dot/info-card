@@ -9,6 +9,7 @@ logger = setup_logger('auth_middleware')
 PUBLIC_PATHS = [
     "/api/users/login",
     "/api/users/register",
+    "/api/suggestions",
     "/api/search",  # 添加搜索接口到公开路径
     "/"  # 根路径通常也是公开的
 ]
