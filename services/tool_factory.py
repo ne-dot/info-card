@@ -41,6 +41,10 @@ class ToolFactory:
             elif "tech news" in tool_name or "科技新闻" in tool_name:
                 await ToolFactory._init_tech_news_tool(tool_services, tool_results, query, db)
             
+            # 建议工具
+            elif "suggestion" in tool_name or "建议" in tool_name:
+                await ToolFactory._init_suggestion_tool(tool_services, tool_results, query, db)
+            
             # 可以继续添加其他工具类型
             else:
                 logger.info(f"未知工具类型: {tool_name}，跳过初始化")
@@ -94,6 +98,24 @@ class ToolFactory:
         except Exception as e:
             logger.error(f"初始化或调用科技新闻工具失败: {str(e)}")
             tool_results["tech_news"] = {"error": f"科技新闻工具调用失败: {str(e)}"}
+    
+    @staticmethod
+    async def _init_suggestion_tool(tool_services: Dict[str, Any], tool_results: Dict[str, Any], query: str, db = None):
+        """初始化建议工具"""
+        try:
+            from services.suggestion_service import SuggestionService
+            
+            # 初始化建议服务，传递数据库连接
+            suggestion_service = SuggestionService(db=db)
+            tool_services["suggestion"] = suggestion_service
+            
+            # 获取建议数据
+            suggestion_data = await suggestion_service.get_tool_data(query)
+            tool_results["suggestion"] = suggestion_data
+            logger.info(f"建议工具初始化并调用成功，查询: {query}")
+        except Exception as e:
+            logger.error(f"初始化或调用建议工具失败: {str(e)}")
+            tool_results["suggestion"] = {"error": f"建议工具调用失败: {str(e)}"}
     
     @staticmethod
     async def save_tool_results(tool_results: Dict[str, Any], tool_services: Dict[str, Any], invocation_id: str, result: str = None, **kwargs):

@@ -5,6 +5,7 @@ from services.user_service import UserService
 from services.tool_service import ToolService
 from services.agent_model_config_service import AgentModelConfigService
 from controllers import search_controller, user_controller, agent_controller, tool_controller, agent_model_config_controller
+from controllers import agent_prompt_controller, invocation_controller, suggestion_controller
 from database.connection import Database
 from dao.user_dao import UserDAO
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,8 +16,7 @@ from middleware.i18n_middleware import I18nMiddleware
 from utils.i18n_utils import get_text
 from utils.i18n_utils import load_translations
 from services.agent_service import AgentService
-from controllers import agent_prompt_controller
-from controllers import invocation_controller
+from services.agent_model_config_service import AgentModelConfigService
 
 logger = setup_logger('app')
 
@@ -41,6 +41,7 @@ async def lifespan(app):
     app.state.user_service = user_service
     app.state.agent_service = agent_service
     app.state.tool_service = tool_service
+    app.state.db = db
     
     # 初始化控制器
     user_controller.init_controller(user_service)
@@ -49,6 +50,7 @@ async def lifespan(app):
     agent_model_config_controller.init_controller(model_config_service)
     agent_prompt_controller.init_controller(db)
     invocation_controller.init_controller(db)
+    suggestion_controller.init_controller(db)  # 初始化建议控制器
     logger.info("应用程序初始化完成")
     
     yield
@@ -82,6 +84,7 @@ app.include_router(agent_controller.router, prefix="/api", tags=["Agent"])  # �
 app.include_router(tool_controller.router, prefix="/api/tools", tags=["工具"])
 app.include_router(agent_model_config_controller.router, prefix="/api/model-configs", tags=["模型配置"])
 app.include_router(invocation_controller.router, prefix="/api/invocations", tags=["Agent记录"])
+app.include_router(suggestion_controller.router, prefix="/api", tags=["建议"])  # 注册建议路由
 
 @app.get("/")
 async def root():

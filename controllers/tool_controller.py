@@ -29,7 +29,7 @@ async def get_tool_types():
         logger.error(f"获取工具类型失败: {str(e)}")
         return error_response(f"获取工具类型失败: {str(e)}")
 
-@router.post("/", response_model=ToolResponse)
+@router.post("", response_model=ToolResponse)
 async def create_tool(tool_data: ToolCreate, current_user = Depends(get_current_user)):
     """创建新工具"""
     try:

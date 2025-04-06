@@ -85,6 +85,9 @@ class Agent(Base):
         # search类型的agent不需要订阅，直接返回True
         if self.name == "AI搜索":
             return True
+        
+        if self.name == "建议agent":
+            return True
             
         # 创建者可以访问自己创建的agent
         if self.user_id == user_id:

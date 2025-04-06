@@ -38,11 +38,9 @@ class GoogleSearchService(ToolProtocol):
         try:
             logger.info(f"执行Google搜索，查询: {query}")
             
-            # 获取文本搜索结果（5条）- 移除limit参数
             text_results = await search_google_by_text(query)
             logger.info(f"获取到 {len(text_results)} 条文本搜索结果")
             
-            # 获取图片搜索结果（5条）- 移除limit参数
             image_results = await search_google_by_image(query)
             logger.info(f"获取到 {len(image_results)} 条图片搜索结果")
             
