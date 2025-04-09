@@ -5,7 +5,7 @@ from services.user_service import UserService
 from services.tool_service import ToolService
 from services.agent_model_config_service import AgentModelConfigService
 from controllers import search_controller, user_controller, agent_controller, tool_controller, agent_model_config_controller
-from controllers import agent_prompt_controller, invocation_controller, suggestion_controller
+from controllers import agent_prompt_controller, invocation_controller, suggestion_controller, favorite_controller
 from database.connection import Database
 from dao.user_dao import UserDAO
 from fastapi.middleware.cors import CORSMiddleware
@@ -51,6 +51,7 @@ async def lifespan(app):
     agent_prompt_controller.init_controller(db)
     invocation_controller.init_controller(db)
     suggestion_controller.init_controller(db)  # 初始化建议控制器
+    favorite_controller.init_controller(db)  # 初始化收藏控制器
     logger.info("应用程序初始化完成")
     
     yield
@@ -85,6 +86,7 @@ app.include_router(tool_controller.router, prefix="/api/tools", tags=["工具"])
 app.include_router(agent_model_config_controller.router, prefix="/api/model-configs", tags=["模型配置"])
 app.include_router(invocation_controller.router, prefix="/api/invocations", tags=["Agent记录"])
 app.include_router(suggestion_controller.router, prefix="/api", tags=["建议"])  # 注册建议路由
+app.include_router(favorite_controller.router, prefix="/api", tags=["收藏"])  # 注册收藏路由
 
 @app.get("/")
 async def root():

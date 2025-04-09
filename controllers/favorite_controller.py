@@ -21,7 +21,6 @@ def init_controller(db):
 @router.post("/favorites", response_model=FavoriteResponse)
 async def create_favorite(
     favorite_data: FavoriteCreate,
-    request: Request,
     current_user: UserResponse = Depends(get_current_user)
 ):
     """创建收藏记录"""
@@ -33,14 +32,13 @@ async def create_favorite(
             title=favorite_data.title,
             content=favorite_data.content,
             url=favorite_data.url,
-            image_url=favorite_data.image_url,
-            tag_id=favorite_data.tag_id
+            image_url=favorite_data.image_url
         )
         
         if not favorite:
             return error_response("创建收藏失败", ErrorCode.UNKNOWN_ERROR)
         
-        return success_response(favorite.dict())
+        return success_response(favorite.model_dump())
     except Exception as e:
         logger.error(f"创建收藏失败: {str(e)}")
         return error_response(f"创建收藏失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
@@ -50,7 +48,6 @@ async def get_favorites(
     source_type: str = None,
     limit: int = 10,
     offset: int = 0,
-    request: Request = None,
     current_user: UserResponse = Depends(get_current_user)
 ):
     """获取用户的收藏列表"""
@@ -64,7 +61,7 @@ async def get_favorites(
         )
         
         # 转换为响应模型
-        favorite_list = [favorite.dict() for favorite in favorites]
+        favorite_list = [favorite.model_dump() for favorite in favorites]
         
         return success_response(favorite_list)
     except Exception as e:
@@ -74,7 +71,6 @@ async def get_favorites(
 @router.get("/favorites/{favorite_id}", response_model=FavoriteResponse)
 async def get_favorite(
     favorite_id: str,
-    request: Request,
     current_user: UserResponse = Depends(get_current_user)
 ):
     """获取收藏记录详情"""
@@ -89,7 +85,7 @@ async def get_favorite(
         if favorite.user_id != current_user.user_id:
             return error_response("无权访问此收藏记录", ErrorCode.PERMISSION_DENIED)
         
-        return success_response(favorite.dict())
+        return success_response(favorite.model_dump())
     except Exception as e:
         logger.error(f"获取收藏记录失败: {str(e)}")
         return error_response(f"获取收藏记录失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)
@@ -98,7 +94,6 @@ async def get_favorite(
 async def update_favorite(
     favorite_id: str,
     favorite_data: FavoriteUpdate,
-    request: Request,
     current_user: UserResponse = Depends(get_current_user)
 ):
     """更新收藏记录"""
@@ -126,7 +121,7 @@ async def update_favorite(
         if not updated_favorite:
             return error_response("更新收藏记录失败", ErrorCode.UNKNOWN_ERROR)
         
-        return success_response(updated_favorite.dict())
+        return success_response(updated_favorite.model_dump())
     except Exception as e:
         logger.error(f"更新收藏记录失败: {str(e)}")
         return error_response(f"更新收藏记录失败: {str(e)}", ErrorCode.UNKNOWN_ERROR)

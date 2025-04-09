@@ -12,7 +12,6 @@ class FavoriteBase(BaseModel):
 
 class FavoriteCreate(FavoriteBase):
     """创建收藏请求模型"""
-    user_id: str
     source_type: str  # 'google' 或 'ai'
 
 class FavoriteUpdate(FavoriteBase):

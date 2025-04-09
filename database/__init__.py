@@ -13,6 +13,8 @@ from .agent_model_config import AgentModelConfig
 from .agent_prompt import AgentPrompt
 # 添加导入
 from .suggestion import Suggestion
+from .tag_models import TagModel
+from .favorite_models import FavoriteModel
 
 # 确保所有模型都被注册
 __all__ = [
@@ -27,5 +29,8 @@ __all__ = [
     'AgentPrompt',
     'AgentInvocation',
     'AISummary',
-    'SearchRawData'  # 添加回来
+    'SearchRawData',
+    'TagModel',
+    'FavoriteModel',
+    'Suggestion'
 ]
